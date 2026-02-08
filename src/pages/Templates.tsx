@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useStore, MessageTemplate } from "@/store/useStore";
-import { Plus, Trash2, Edit2, Tag } from "lucide-react";
+import { Plus, Trash2, Edit2, ImagePlus, X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,18 +9,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-const categoryColors: Record<string, string> = {
-  sale: "bg-gold/10 text-gold-dark",
-  discount: "bg-accent/10 text-accent",
-  festival: "bg-gold/20 text-gold-dark",
-  general: "bg-muted text-muted-foreground",
+const categoryConfig: Record<string, { bg: string; text: string; label: string }> = {
+  sale: { bg: "bg-accent/15", text: "text-accent", label: "Sale" },
+  discount: { bg: "bg-gold-dark/15", text: "text-gold-dark", label: "Discount" },
+  festival: { bg: "bg-accent/20", text: "text-gold-dark", label: "Festival" },
+  general: { bg: "bg-muted", text: "text-muted-foreground", label: "General" },
 };
 
 const Templates = () => {
   const { templates, addTemplate, deleteTemplate, updateTemplate } = useStore();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", content: "", category: "general" as MessageTemplate["category"] });
+  const [form, setForm] = useState({ name: "", content: "", category: "general" as MessageTemplate["category"], imageUrl: "" });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5MB"); return; }
+    const reader = new FileReader();
+    reader.onload = () => setForm(prev => ({ ...prev, imageUrl: reader.result as string }));
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,64 +44,103 @@ const Templates = () => {
       addTemplate(form);
       toast.success("Template created");
     }
-    setForm({ name: "", content: "", category: "general" });
+    setForm({ name: "", content: "", category: "general", imageUrl: "" });
     setOpen(false);
   };
 
   const startEdit = (t: MessageTemplate) => {
-    setForm({ name: t.name, content: t.content, category: t.category });
+    setForm({ name: t.name, content: t.content, category: t.category, imageUrl: t.imageUrl || "" });
     setEditId(t.id);
     setOpen(true);
   };
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-4xl font-display font-semibold text-foreground">Message Templates</h1>
-          <p className="text-muted-foreground mt-1 font-body text-sm tracking-wide">
-            Use <code className="bg-muted px-1 rounded text-xs">{"{name}"}</code> to personalize messages
+      <div className="flex items-center justify-between page-header">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 className="page-title">Templates</h1>
+          <p className="page-subtitle">
+            Create message templates with brochures • Use <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">{"{name}"}</code> to personalize
           </p>
-        </div>
+        </motion.div>
 
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ name: "", content: "", category: "general" }); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ name: "", content: "", category: "general", imageUrl: "" }); } }}>
           <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90 font-body tracking-wide">
+            <Button className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6">
               <Plus className="h-4 w-4 mr-2" /> New Template
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle className="font-display text-2xl">{editId ? "Edit Template" : "Create Template"}</DialogTitle>
+              <DialogTitle className="font-display text-3xl">{editId ? "Edit Template" : "Create Template"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            <form onSubmit={handleSubmit} className="space-y-5 mt-4">
               <div>
-                <label className="text-sm font-body font-medium mb-1 block">Template Name *</label>
-                <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Summer Sale" />
+                <label className="form-label">Template Name *</label>
+                <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Summer Sale" className="h-11" />
               </div>
               <div>
-                <label className="text-sm font-body font-medium mb-1 block">Category</label>
+                <label className="form-label">Category</label>
                 <Select value={form.category} onValueChange={v => setForm({ ...form, category: v as MessageTemplate["category"] })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="sale">Sale</SelectItem>
-                    <SelectItem value="discount">Discount</SelectItem>
-                    <SelectItem value="festival">Festival</SelectItem>
-                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="sale">🏷️ Sale</SelectItem>
+                    <SelectItem value="discount">💰 Discount</SelectItem>
+                    <SelectItem value="festival">🎊 Festival</SelectItem>
+                    <SelectItem value="general">📋 General</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-body font-medium mb-1 block">Message Content *</label>
+                <label className="form-label">Message Content *</label>
                 <Textarea
                   value={form.content}
                   onChange={e => setForm({ ...form, content: e.target.value })}
                   placeholder="Hi {name}! Your message here..."
-                  rows={5}
+                  rows={4}
+                  className="text-sm"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Use {"{name}"} — it will be replaced with each client's name</p>
+                <p className="text-[10px] text-muted-foreground mt-1 tracking-wider font-body">
+                  USE {"{name}"} — it will be replaced with each client's name
+                </p>
               </div>
-              <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-body tracking-wide">
+
+              {/* Image / Brochure Upload */}
+              <div>
+                <label className="form-label">Brochure / Image (optional)</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                {form.imageUrl ? (
+                  <div className="relative group rounded-xl overflow-hidden border border-border">
+                    <img src={form.imageUrl} alt="Brochure" className="w-full h-48 object-cover" />
+                    <div className="absolute inset-0 bg-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, imageUrl: "" }))}
+                        className="p-2 rounded-full bg-background/80 text-foreground hover:bg-background transition-colors"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-32 rounded-xl border-2 border-dashed border-border hover:border-accent/40 transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-accent"
+                  >
+                    <ImagePlus className="h-8 w-8" />
+                    <span className="text-xs font-body tracking-wider">Upload Brochure Image</span>
+                  </button>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
                 {editId ? "Update Template" : "Create Template"}
               </Button>
             </form>
@@ -98,36 +148,60 @@ const Templates = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <AnimatePresence>
-          {templates.map((t, i) => (
-            <motion.div
-              key={t.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ delay: i * 0.05 }}
-              className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow flex flex-col"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-display text-xl font-semibold">{t.name}</h3>
-                <span className={`text-xs px-2 py-1 rounded-full font-body tracking-wide uppercase ${categoryColors[t.category]}`}>
-                  {t.category}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground font-body flex-1 whitespace-pre-wrap leading-relaxed">{t.content}</p>
-              <div className="flex gap-2 mt-4 pt-4 border-t border-border">
-                <button onClick={() => startEdit(t)} className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                  <Edit2 className="h-4 w-4" />
-                </button>
-                <button onClick={() => { deleteTemplate(t.id); toast.success("Template deleted"); }} className="p-2 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+      {/* Template Cards */}
+      {templates.length === 0 ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-16 text-center">
+          <div className="avatar-circle mx-auto mb-4 h-16 w-16">
+            <Sparkles className="h-7 w-7 text-accent-foreground" />
+          </div>
+          <p className="font-display text-xl text-foreground mb-1">No templates yet</p>
+          <p className="font-body text-sm text-muted-foreground">Create your first template to start messaging</p>
+        </motion.div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <AnimatePresence>
+            {templates.map((t, i) => {
+              const cat = categoryConfig[t.category] || categoryConfig.general;
+              return (
+                <motion.div
+                  key={t.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="glass-card-hover overflow-hidden flex flex-col group"
+                >
+                  {/* Brochure Image */}
+                  {t.imageUrl && (
+                    <div className="relative h-44 overflow-hidden">
+                      <img src={t.imageUrl} alt={t.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
+                    </div>
+                  )}
+
+                  <div className="p-5 flex-1 flex flex-col">
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="font-display text-xl font-semibold text-foreground leading-tight">{t.name}</h3>
+                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-body tracking-wider uppercase font-semibold shrink-0 ml-2 ${cat.bg} ${cat.text}`}>
+                        {cat.label}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground font-body flex-1 whitespace-pre-wrap leading-relaxed line-clamp-4">{t.content}</p>
+                    <div className="flex gap-1 mt-4 pt-3 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <button onClick={() => startEdit(t)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg hover:bg-muted transition-colors text-xs font-body text-muted-foreground hover:text-foreground">
+                        <Edit2 className="h-3.5 w-3.5" /> Edit
+                      </button>
+                      <button onClick={() => { deleteTemplate(t.id); toast.success("Template deleted"); }} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg hover:bg-destructive/10 transition-colors text-xs font-body text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 };

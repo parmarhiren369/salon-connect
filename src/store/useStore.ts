@@ -14,6 +14,7 @@ export interface MessageTemplate {
   name: string;
   content: string;
   category: 'sale' | 'discount' | 'festival' | 'general';
+  imageUrl?: string;
 }
 
 interface AppState {

@@ -1,10 +1,10 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Users, LayoutDashboard, MessageSquare, FileText } from "lucide-react";
+import { Users, LayoutDashboard, MessageSquare, FileText, Sparkles } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/customers", icon: Users, label: "Customers" },
+  { to: "/customers", icon: Users, label: "Clients" },
   { to: "/templates", icon: FileText, label: "Templates" },
   { to: "/messaging", icon: MessageSquare, label: "Messaging" },
 ];
@@ -13,35 +13,56 @@ const Sidebar = () => {
   const location = useLocation();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
-      <div className="p-6 flex items-center justify-center border-b border-sidebar-border">
-        <img src={logo} alt="Life Style Studio" className="h-20 w-auto invert" />
+    <aside className="fixed left-0 top-0 z-40 h-screen w-72 bg-sidebar flex flex-col">
+      {/* Logo area with gold accent line */}
+      <div className="p-8 flex flex-col items-center border-b border-sidebar-border relative">
+        <img src={logo} alt="Life Style Studio" className="h-16 w-auto invert opacity-90" />
+        <div className="flex items-center gap-2 mt-3">
+          <Sparkles className="h-3 w-3 text-sidebar-primary" />
+          <span className="text-[10px] font-body tracking-[0.3em] uppercase text-sidebar-foreground/50">
+            Salon Management
+          </span>
+          <Sparkles className="h-3 w-3 text-sidebar-primary" />
+        </div>
+        <div className="absolute bottom-0 left-6 right-6 h-px gold-gradient opacity-30" />
       </div>
 
-      <nav className="flex-1 px-3 py-6 space-y-1">
+      <nav className="flex-1 px-4 py-8 space-y-2">
         {navItems.map(({ to, icon: Icon, label }) => {
           const active = location.pathname === to;
           return (
             <NavLink
               key={to}
               to={to}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-body tracking-wide transition-all duration-200 ${
+              className={`group flex items-center gap-4 px-5 py-3.5 rounded-xl text-sm font-body tracking-wider transition-all duration-300 relative overflow-hidden ${
                 active
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  ? "text-sidebar-primary-foreground"
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
               }`}
             >
-              <Icon className="h-5 w-5" />
-              {label}
+              {active && (
+                <div className="absolute inset-0 gold-gradient opacity-90 rounded-xl" />
+              )}
+              <Icon className={`h-5 w-5 relative z-10 transition-transform duration-300 group-hover:scale-110 ${active ? "text-sidebar-primary-foreground" : ""}`} />
+              <span className="relative z-10 font-medium">{label}</span>
+              {active && (
+                <div className="absolute right-3 h-2 w-2 rounded-full bg-sidebar-primary-foreground/50 relative z-10" />
+              )}
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border">
-        <p className="text-xs text-muted-foreground text-center font-body tracking-widest uppercase">
-          Life Style Studio
-        </p>
+      <div className="p-6 border-t border-sidebar-border">
+        <div className="text-center">
+          <p className="text-[10px] text-sidebar-foreground/30 font-body tracking-[0.4em] uppercase">
+            Life Style Studio
+          </p>
+          <div className="mt-2 h-px gold-gradient opacity-20 mx-8" />
+          <p className="text-[9px] text-sidebar-foreground/20 font-body mt-2 tracking-wider">
+            v2.0 Premium
+          </p>
+        </div>
       </div>
     </aside>
   );

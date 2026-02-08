@@ -1,75 +1,107 @@
 import { useStore } from "@/store/useStore";
-import { Users, FileText, MessageSquare, TrendingUp } from "lucide-react";
+import { Users, FileText, MessageSquare, TrendingUp, ArrowUpRight, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 
 const Dashboard = () => {
   const { customers, templates } = useStore();
 
+  const thisMonth = customers.filter(c => {
+    const d = new Date(c.date);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+
   const stats = [
-    { label: "Total Clients", value: customers.length, icon: Users, color: "text-gold" },
-    { label: "Templates", value: templates.length, icon: FileText, color: "text-gold" },
-    { label: "This Month", value: customers.filter(c => { const d = new Date(c.date); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length, icon: TrendingUp, color: "text-gold" },
-    { label: "Ready to Message", value: customers.filter(c => c.mobile).length, icon: MessageSquare, color: "text-gold" },
+    { label: "Total Clients", value: customers.length, icon: Users, subtitle: "All registered" },
+    { label: "Templates", value: templates.length, icon: FileText, subtitle: "Ready to send" },
+    { label: "This Month", value: thisMonth, icon: TrendingUp, subtitle: "New clients" },
+    { label: "Ready to Message", value: customers.filter(c => c.mobile).length, icon: MessageSquare, subtitle: "With mobile" },
   ];
 
-  const recentCustomers = [...customers].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  const recentCustomers = [...customers]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-4xl font-display font-semibold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1 font-body text-sm tracking-wide">Welcome back to Life Style Studio</p>
+      <div className="page-header">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">Welcome back to Life Style Studio</p>
+        </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
         {stats.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow"
+            transition={{ delay: i * 0.08, type: "spring", stiffness: 100 }}
+            className="stat-card group cursor-default"
           >
-            <div className="flex items-center justify-between mb-4">
-              <stat.icon className={`h-8 w-8 ${stat.color}`} />
-              <span className="text-3xl font-display font-bold text-foreground">{stat.value}</span>
+            <div className="flex items-start justify-between mb-6">
+              <div className="h-12 w-12 rounded-xl gold-gradient flex items-center justify-center shadow-lg shadow-accent/20 group-hover:scale-110 transition-transform duration-300">
+                <stat.icon className="h-6 w-6 text-accent-foreground" />
+              </div>
+              <ArrowUpRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-accent transition-colors" />
             </div>
-            <p className="text-sm text-muted-foreground font-body tracking-wide">{stat.label}</p>
+            <span className="text-4xl font-display font-bold text-foreground tracking-tight">{stat.value}</span>
+            <p className="text-sm text-foreground font-body font-medium mt-1">{stat.label}</p>
+            <p className="text-xs text-muted-foreground font-body mt-0.5">{stat.subtitle}</p>
           </motion.div>
         ))}
       </div>
 
+      {/* Recent Clients */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-card rounded-xl border border-border"
+        transition={{ delay: 0.35 }}
+        className="glass-card overflow-hidden"
       >
-        <div className="p-6 border-b border-border">
-          <h2 className="text-2xl font-display font-semibold">Recent Clients</h2>
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-display font-semibold">Recent Clients</h2>
+            <p className="text-xs text-muted-foreground font-body tracking-wider mt-1">Latest additions to your client list</p>
+          </div>
+          <Calendar className="h-5 w-5 text-accent" />
         </div>
         {recentCustomers.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground">
-            <Users className="h-12 w-12 mx-auto mb-4 text-gold opacity-50" />
-            <p className="font-body">No clients yet. Add your first client!</p>
+          <div className="p-16 text-center">
+            <div className="avatar-circle mx-auto mb-4 h-16 w-16">
+              <Users className="h-7 w-7 text-accent-foreground" />
+            </div>
+            <p className="font-display text-xl text-foreground mb-1">No clients yet</p>
+            <p className="font-body text-sm text-muted-foreground">Add your first client to get started</p>
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {recentCustomers.map(c => (
-              <div key={c.id} className="px-6 py-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+            {recentCustomers.map((c, i) => (
+              <motion.div
+                key={c.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + i * 0.05 }}
+                className="px-6 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
+              >
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
-                    <span className="text-primary-foreground font-display font-semibold text-lg">
-                      {c.name.charAt(0).toUpperCase()}
-                    </span>
+                  <div className="avatar-circle">
+                    <span className="avatar-text">{c.name.charAt(0).toUpperCase()}</span>
                   </div>
                   <div>
-                    <p className="font-body font-medium text-foreground">{c.name}</p>
-                    <p className="text-sm text-muted-foreground">{c.mobile}</p>
+                    <p className="font-body font-semibold text-foreground text-sm">{c.name}</p>
+                    <p className="text-xs text-muted-foreground font-body tracking-wide">{c.mobile}</p>
                   </div>
                 </div>
-                <span className="text-sm text-muted-foreground font-body">{new Date(c.date).toLocaleDateString()}</span>
-              </div>
+                <div className="text-right">
+                  <span className="text-xs text-muted-foreground font-body">{new Date(c.date).toLocaleDateString()}</span>
+                  {c.services && (
+                    <p className="text-[10px] text-accent font-body font-medium mt-0.5">{c.services}</p>
+                  )}
+                </div>
+              </motion.div>
             ))}
           </div>
         )}
