@@ -49,6 +49,9 @@
     --gold-light: 38 50% 70%;
     --gold-dark: 38 70% 35%;
 
+    --success: 142 70% 40%;
+    --success-foreground: 0 0% 100%;
+
     --font-display: 'Cormorant Garamond', serif;
     --font-body: 'Montserrat', sans-serif;
   }
@@ -97,5 +100,53 @@
   }
   .font-body {
     font-family: var(--font-body);
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm;
+  }
+  .glass-card-hover {
+    @apply glass-card hover:shadow-xl hover:shadow-accent/5 hover:border-accent/20 transition-all duration-300;
+  }
+  .gold-gradient {
+    background: linear-gradient(135deg, hsl(38 60% 50%), hsl(38 50% 70%));
+  }
+  .gold-gradient-text {
+    background: linear-gradient(135deg, hsl(38 70% 35%), hsl(38 60% 50%), hsl(38 50% 70%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .stat-card {
+    @apply relative overflow-hidden rounded-2xl border border-border p-6 bg-card;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, hsl(38 60% 50%), hsl(38 50% 70%));
+  }
+  .page-header {
+    @apply mb-10;
+  }
+  .page-title {
+    @apply text-4xl md:text-5xl font-display font-semibold text-foreground tracking-tight;
+  }
+  .page-subtitle {
+    @apply text-muted-foreground mt-2 font-body text-sm tracking-widest uppercase;
+  }
+  .form-label {
+    @apply text-xs font-body font-semibold text-muted-foreground mb-2 block uppercase tracking-widest;
+  }
+  .avatar-circle {
+    @apply h-10 w-10 rounded-full gold-gradient flex items-center justify-center shadow-md;
+  }
+  .avatar-text {
+    @apply text-accent-foreground text-sm font-display font-bold;
   }
 }
