@@ -1,10 +1,14 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Users, LayoutDashboard, MessageSquare, FileText, Sparkles } from "lucide-react";
+import { Users, LayoutDashboard, MessageSquare, FileText, Sparkles, Scissors, Cake, Receipt, Crown } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/customers", icon: Users, label: "Clients" },
+  { to: "/services", icon: Scissors, label: "Services" },
+  { to: "/billing", icon: Receipt, label: "Billing" },
+  { to: "/memberships", icon: Crown, label: "Memberships" },
+  { to: "/birthdays", icon: Cake, label: "Birthdays" },
   { to: "/templates", icon: FileText, label: "Templates" },
   { to: "/messaging", icon: MessageSquare, label: "Messaging" },
 ];

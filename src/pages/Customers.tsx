@@ -1,41 +1,59 @@
 import { useState } from "react";
 import { useStore, Customer } from "@/store/useStore";
-import { Plus, Search, Trash2, Edit2, UserPlus, Phone, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Search, Trash2, Edit2, UserPlus, Phone, Calendar as CalendarIcon, MapPin, Cake, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const Customers = () => {
-  const { customers, addCustomer, deleteCustomer, updateCustomer } = useStore();
+  const { customers, addCustomer, deleteCustomer, updateCustomer, salonServices } = useStore();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], services: "", notes: "" });
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const emptyForm = { name: "", mobile: "", date: new Date().toISOString().split("T")[0], services: "", notes: "", address: "", reference: "", birthday: "", anniversary: "" };
+  const [form, setForm] = useState(emptyForm);
 
   const filtered = customers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.mobile.includes(search)
   );
 
+  const toggleService = (name: string) => {
+    setSelectedServices(prev =>
+      prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]
+    );
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.mobile) { toast.error("Name and mobile are required"); return; }
+    const data = { ...form, services: selectedServices.join(", ") };
     if (editId) {
-      updateCustomer(editId, form);
+      updateCustomer(editId, data);
       toast.success("Client updated");
       setEditId(null);
     } else {
-      addCustomer(form);
+      addCustomer(data);
       toast.success("Client added successfully");
     }
-    setForm({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], services: "", notes: "" });
+    setForm(emptyForm);
+    setSelectedServices([]);
     setOpen(false);
   };
 
   const startEdit = (c: Customer) => {
-    setForm({ name: c.name, mobile: c.mobile, date: c.date, services: c.services || "", notes: c.notes || "" });
+    setForm({
+      name: c.name, mobile: c.mobile, date: c.date,
+      services: c.services || "", notes: c.notes || "",
+      address: c.address || "", reference: c.reference || "",
+      birthday: c.birthday || "", anniversary: c.anniversary || "",
+    });
+    setSelectedServices(c.services ? c.services.split(",").map(s => s.trim()).filter(Boolean) : []);
     setEditId(c.id);
     setOpen(true);
   };
@@ -48,37 +66,76 @@ const Customers = () => {
           <p className="page-subtitle">{customers.length} total clients registered</p>
         </motion.div>
 
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], services: "", notes: "" }); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); setSelectedServices([]); } }}>
           <DialogTrigger asChild>
             <Button className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6">
               <UserPlus className="h-4 w-4 mr-2" /> Add Client
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display text-3xl">{editId ? "Edit Client" : "New Client"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-5 mt-4">
-              <div>
-                <label className="form-label">Full Name *</label>
-                <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Client name" className="h-11" />
+            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="form-label">Full Name *</label>
+                  <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Client name" className="h-11" />
+                </div>
+                <div>
+                  <label className="form-label">Mobile Number *</label>
+                  <Input value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} placeholder="+91 9876543210" className="h-11" />
+                </div>
+                <div>
+                  <label className="form-label">Visit Date</label>
+                  <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="h-11" />
+                </div>
               </div>
+
               <div>
-                <label className="form-label">Mobile Number *</label>
-                <Input value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} placeholder="+91 9876543210" className="h-11" />
+                <label className="form-label">Address</label>
+                <Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Full address" className="h-11" />
               </div>
+
               <div>
-                <label className="form-label">Visit Date</label>
-                <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="h-11" />
+                <label className="form-label">Reference</label>
+                <Input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="How did they find you?" className="h-11" />
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Birthday</label>
+                  <Input type="date" value={form.birthday} onChange={e => setForm({ ...form, birthday: e.target.value })} className="h-11" />
+                </div>
+                <div>
+                  <label className="form-label">Anniversary</label>
+                  <Input type="date" value={form.anniversary} onChange={e => setForm({ ...form, anniversary: e.target.value })} className="h-11" />
+                </div>
+              </div>
+
               <div>
                 <label className="form-label">Services</label>
-                <Input value={form.services} onChange={e => setForm({ ...form, services: e.target.value })} placeholder="Hair, Makeup, etc." className="h-11" />
+                {salonServices.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mt-1 p-3 rounded-xl border border-border bg-muted/30">
+                    {salonServices.map(s => (
+                      <button type="button" key={s.id} onClick={() => toggleService(s.name)}
+                        className={`text-xs px-3 py-1.5 rounded-full font-body transition-all ${selectedServices.includes(s.name) ? 'gold-gradient text-accent-foreground shadow-md' : 'bg-background text-muted-foreground hover:bg-muted border border-border'}`}
+                      >{s.name}</button>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <Input value={form.services} onChange={e => setForm({ ...form, services: e.target.value })} placeholder="Hair, Makeup, etc." className="h-11" />
+                    <p className="text-[10px] text-muted-foreground mt-1 font-body">Tip: Add services in Services page for dropdown</p>
+                  </div>
+                )}
               </div>
+
               <div>
                 <label className="form-label">Notes</label>
                 <Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Any additional notes" className="h-11" />
               </div>
+
               <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
                 {editId ? "Update Client" : "Add Client"}
               </Button>
@@ -90,12 +147,7 @@ const Customers = () => {
       {/* Search */}
       <div className="relative mb-8">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name or mobile..."
-          className="pl-12 h-12 rounded-xl text-sm"
-        />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or mobile..." className="pl-12 h-12 rounded-xl text-sm" />
       </div>
 
       {/* Client Cards */}
@@ -133,6 +185,18 @@ const Customers = () => {
                       <CalendarIcon className="h-3 w-3 text-accent" />
                       <span className="text-xs text-muted-foreground font-body">{new Date(c.date).toLocaleDateString()}</span>
                     </div>
+                    {c.address && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <MapPin className="h-3 w-3 text-accent" />
+                        <span className="text-xs text-muted-foreground font-body truncate">{c.address}</span>
+                      </div>
+                    )}
+                    {c.birthday && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Cake className="h-3 w-3 text-accent" />
+                        <span className="text-xs text-muted-foreground font-body">{new Date(c.birthday).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                      </div>
+                    )}
                     {c.services && (
                       <div className="mt-2 flex flex-wrap gap-1">
                         {c.services.split(",").map((s, si) => (
