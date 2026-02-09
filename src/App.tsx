@@ -8,6 +8,10 @@ import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Templates from "./pages/Templates";
 import Messaging from "./pages/Messaging";
+import Services from "./pages/Services";
+import Billing from "./pages/Billing";
+import Memberships from "./pages/Memberships";
+import Birthdays from "./pages/Birthdays";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +26,10 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/billing" element={<Billing />} />
+            <Route path="/memberships" element={<Memberships />} />
+            <Route path="/birthdays" element={<Birthdays />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/messaging" element={<Messaging />} />
             <Route path="*" element={<NotFound />} />
