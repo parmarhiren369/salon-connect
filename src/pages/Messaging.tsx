@@ -16,8 +16,7 @@ const Messaging = () => {
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
-  const [sendQueue, setSendQueue] = useState<Customer[]>([]);
-  const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
+  
 
   const template = templates.find(t => t.id === selectedTemplate);
   const message = template ? template.content : customMessage;
@@ -45,43 +44,25 @@ const Messaging = () => {
     setSelectedCustomers(next);
   };
 
-  const startSending = () => {
+  const sendMessages = () => {
     if (!message) { toast.error("Please write a message or select a template"); return; }
     if (selectedCustomers.size === 0) { toast.error("Please select at least one client"); return; }
 
-    const selected = customers.filter(c => selectedCustomers.has(c.id));
-    setSendQueue(selected);
-    setCurrentQueueIndex(0);
     setSending(true);
-    // Open first one immediately
-    openWhatsApp(selected[0]);
-    if (selected.length === 1) {
-      toast.success("Message sent!");
-      setTimeout(() => { setSending(false); setSendQueue([]); }, 500);
-    } else {
-      toast.info(`Sending 1 of ${selected.length} — click "Send Next" to continue`);
-    }
-  };
+    const selected = customers.filter(c => selectedCustomers.has(c.id));
 
-  const openWhatsApp = (c: Customer) => {
-    const personalizedMsg = message.replace(/\{name\}/gi, c.name);
-    const phone = c.mobile.replace(/[^0-9]/g, "");
-    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(personalizedMsg)}`;
-    window.open(waUrl, "_blank");
-  };
+    selected.forEach((c, i) => {
+      const personalizedMsg = message.replace(/\{name\}/gi, c.name);
+      const phone = c.mobile.replace(/[^0-9]/g, "");
+      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(personalizedMsg)}`;
 
-  const sendNext = () => {
-    const nextIndex = currentQueueIndex + 1;
-    if (nextIndex < sendQueue.length) {
-      setCurrentQueueIndex(nextIndex);
-      openWhatsApp(sendQueue[nextIndex]);
-      if (nextIndex === sendQueue.length - 1) {
-        toast.success(`All ${sendQueue.length} messages sent!`);
-        setTimeout(() => { setSending(false); setSendQueue([]); setCurrentQueueIndex(0); }, 500);
-      } else {
-        toast.info(`Sent ${nextIndex + 1} of ${sendQueue.length} — click "Send Next" to continue`);
-      }
-    }
+      setTimeout(() => {
+        window.open(waUrl, "_blank");
+      }, i * 1500);
+    });
+
+    toast.success(`Opening WhatsApp for ${selected.length} client(s) — allow popups if prompted`);
+    setTimeout(() => setSending(false), selected.length * 1500 + 500);
   };
 
   const previewMessage = (name: string) => message.replace(/\{name\}/gi, name);
@@ -156,23 +137,13 @@ const Messaging = () => {
               </div>
 
               <Button
-                onClick={startSending}
+                onClick={sendMessages}
                 disabled={sending || !message || selectedCustomers.size === 0}
                 className="w-full h-12 bg-[hsl(142,70%,40%)] text-white hover:bg-[hsl(142,70%,35%)] font-body tracking-wider text-sm shadow-lg"
               >
                 <Send className="h-4 w-4 mr-2" />
-                {sending ? `Sending ${currentQueueIndex + 1}/${sendQueue.length}...` : `Send to ${selectedCustomers.size} Client(s)`}
+                {sending ? "Sending..." : `Send to ${selectedCustomers.size} Client(s)`}
               </Button>
-
-              {sending && sendQueue.length > 1 && currentQueueIndex < sendQueue.length - 1 && (
-                <Button
-                  onClick={sendNext}
-                  className="w-full h-12 bg-accent text-accent-foreground hover:bg-accent/90 font-body tracking-wider text-sm shadow-lg animate-pulse"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Send Next → {sendQueue[currentQueueIndex + 1]?.name}
-                </Button>
-              )}
             </div>
           </div>
 
