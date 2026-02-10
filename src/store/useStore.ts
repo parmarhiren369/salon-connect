@@ -5,7 +5,8 @@ export interface Customer {
   name: string;
   mobile: string;
   date: string;
-  birthday?: string; // Format: MM-DD
+  birthday?: string;
+  anniversary?: string;
   services?: string;
   notes?: string;
 }
@@ -26,10 +27,18 @@ export interface Billing {
   date: string;
 }
 
+export interface SalonService {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+}
+
 interface AppState {
   customers: Customer[];
   templates: MessageTemplate[];
   billings: Billing[];
+  salonServices: SalonService[];
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
   deleteCustomer: (id: string) => void;
   updateCustomer: (id: string, data: Partial<Customer>) => void;
@@ -38,6 +47,9 @@ interface AppState {
   updateTemplate: (id: string, data: Partial<MessageTemplate>) => void;
   addBilling: (billing: Omit<Billing, 'id'>) => void;
   deleteBilling: (id: string) => void;
+  addSalonService: (service: Omit<SalonService, 'id'>) => void;
+  deleteSalonService: (id: string) => void;
+  updateSalonService: (id: string, data: Partial<SalonService>) => void;
 }
 
 const loadState = <T>(key: string, fallback: T): T => {
@@ -54,6 +66,7 @@ const saveState = (key: string, value: unknown) => {
 export const useStore = create<AppState>((set, get) => ({
   customers: loadState<Customer[]>('ls-customers', []),
   billings: loadState<Billing[]>('ls-billings', []),
+  salonServices: loadState<SalonService[]>('ls-services', []),
   templates: loadState<MessageTemplate[]>('ls-templates', [
     { id: '1', name: 'Grand Sale', content: 'Hi {name}! 🎉 Grand Sale at Life Style Studio! Get up to 50% OFF on all services. Book now! Call us to reserve your slot.', category: 'sale' },
     { id: '2', name: 'Festival Offer', content: 'Dear {name}, ✨ Celebrate this festive season with Life Style Studio! Special packages starting from ₹999. Limited slots available!', category: 'festival' },
@@ -106,5 +119,23 @@ export const useStore = create<AppState>((set, get) => ({
     const updated = state.billings.filter(b => b.id !== id);
     saveState('ls-billings', updated);
     return { billings: updated };
+  }),
+
+  addSalonService: (service) => set((state) => {
+    const updated = [...state.salonServices, { ...service, id: crypto.randomUUID() }];
+    saveState('ls-services', updated);
+    return { salonServices: updated };
+  }),
+
+  deleteSalonService: (id) => set((state) => {
+    const updated = state.salonServices.filter(s => s.id !== id);
+    saveState('ls-services', updated);
+    return { salonServices: updated };
+  }),
+
+  updateSalonService: (id, data) => set((state) => {
+    const updated = state.salonServices.map(s => s.id === id ? { ...s, ...data } : s);
+    saveState('ls-services', updated);
+    return { salonServices: updated };
   }),
 }));

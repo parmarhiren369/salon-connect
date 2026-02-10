@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Users, LayoutDashboard, MessageSquare, FileText, Sparkles, LogOut, Receipt } from "lucide-react";
+import { Users, LayoutDashboard, MessageSquare, FileText, Sparkles, LogOut, Receipt, Scissors, Cake } from "lucide-react";
 import { useFirebase } from "@/lib/firebase-context";
 import { signOut } from "firebase/auth";
 import { toast } from "sonner";
@@ -8,7 +8,9 @@ import logo from "@/assets/logo.png";
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/customers", icon: Users, label: "Clients" },
+  { to: "/services", icon: Scissors, label: "Services" },
   { to: "/billings", icon: Receipt, label: "Billings" },
+  { to: "/birthdays", icon: Cake, label: "Birthdays" },
   { to: "/templates", icon: FileText, label: "Templates" },
   { to: "/messaging", icon: MessageSquare, label: "Messaging" },
 ];

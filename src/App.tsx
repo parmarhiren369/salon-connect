@@ -8,7 +8,9 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
+import Services from "./pages/Services";
 import Billings from "./pages/Billings";
+import Birthdays from "./pages/Birthdays";
 import Templates from "./pages/Templates";
 import Messaging from "./pages/Messaging";
 import Login from "./pages/Login";
@@ -46,11 +48,31 @@ const App = () => (
               }
             />
             <Route
+              path="/services"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Services />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/billings"
               element={
                 <ProtectedRoute>
                   <Layout>
                     <Billings />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/birthdays"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Birthdays />
                   </Layout>
                 </ProtectedRoute>
               }
