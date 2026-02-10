@@ -1,25 +1,27 @@
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
-import { Search, Plus, DollarSign, Calendar, TrendingUp } from "lucide-react";
+import { Search, Plus, DollarSign, Calendar, TrendingUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const Billings = () => {
-  const { billings, addBilling, customers } = useStore();
+  const { billings, addBilling, customers, salonServices } = useStore();
   const [open, setOpen] = useState(false);
   const [serviceSearch, setServiceSearch] = useState("");
+  const [servicesOpen, setServicesOpen] = useState(false);
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
     end: new Date().toISOString().split("T")[0]
   });
   const [form, setForm] = useState({
     customerId: "",
-    service: "",
-    amount: "",
+    selectedServices: [] as { id: string; name: string; price: number }[],
     date: new Date().toISOString().split("T")[0]
   });
 
@@ -34,20 +36,38 @@ const Billings = () => {
 
   const totalRevenue = filtered.reduce((sum, b) => sum + parseFloat(b.amount), 0);
 
+  const totalAmount = form.selectedServices.reduce((sum, s) => sum + s.price, 0);
+
+  const addService = (service: { id: string; name: string; price: number }) => {
+    if (!form.selectedServices.find(s => s.id === service.id)) {
+      setForm({ ...form, selectedServices: [...form.selectedServices, service] });
+    }
+    setServicesOpen(false);
+  };
+
+  const removeService = (serviceId: string) => {
+    setForm({
+      ...form,
+      selectedServices: form.selectedServices.filter(s => s.id !== serviceId)
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.customerId || !form.service || !form.amount) {
-      toast.error("All fields are required");
+    if (!form.customerId || form.selectedServices.length === 0) {
+      toast.error("Please select client and at least one service");
       return;
     }
+    
+    const serviceNames = form.selectedServices.map(s => s.name).join(", ");
     addBilling({
       customerId: form.customerId,
-      service: form.service,
-      amount: form.amount,
+      service: serviceNames,
+      amount: totalAmount.toString(),
       date: form.date
     });
     toast.success("Billing added successfully");
-    setForm({ customerId: "", service: "", amount: "", date: new Date().toISOString().split("T")[0] });
+    setForm({ customerId: "", selectedServices: [], date: new Date().toISOString().split("T")[0] });
     setOpen(false);
   };
 
@@ -89,25 +109,67 @@ const Billings = () => {
                 </Select>
               </div>
               <div>
-                <label className="form-label">Service *</label>
-                <Input
-                  value={form.service}
-                  onChange={e => setForm({ ...form, service: e.target.value })}
-                  placeholder="e.g., Haircut, Facial, Makeup"
-                  className="h-11"
-                />
-              </div>
-              <div>
-                <label className="form-label">Amount (₹) *</label>
-                <Input
-                  type="number"
-                  value={form.amount}
-                  onChange={e => setForm({ ...form, amount: e.target.value })}
-                  placeholder="0.00"
-                  className="h-11"
-                  min="0"
-                  step="0.01"
-                />
+                <label className="form-label">Services *</label>
+                <Popover open={servicesOpen} onOpenChange={setServicesOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full h-11 justify-between font-normal"
+                    >
+                      {form.selectedServices.length > 0
+                        ? `${form.selectedServices.length} service(s) selected`
+                        : "Select services..."}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search services..." />
+                      <CommandEmpty>No services found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {salonServices.map((service) => (
+                          <CommandItem
+                            key={service.id}
+                            onSelect={() => addService(service)}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span>{service.name}</span>
+                              <span className="text-sm text-muted-foreground">₹{service.price}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                
+                {form.selectedServices.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {form.selectedServices.map((service) => (
+                      <div
+                        key={service.id}
+                        className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border"
+                      >
+                        <span className="text-sm font-medium">{service.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-accent font-semibold">₹{service.price}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeService(service.id)}
+                            className="h-6 w-6 rounded-full hover:bg-destructive/10 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
+                      <span className="font-semibold">Total Amount:</span>
+                      <span className="text-lg font-bold text-accent">₹{totalAmount}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="form-label">Date *</label>
