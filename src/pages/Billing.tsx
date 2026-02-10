@@ -99,7 +99,7 @@ const Billing = () => {
     const servicesText = b.services.length > 0 ? `\nServices: ${b.services.join(", ")}` : "";
     const discountText = (b.discount ?? 0) > 0 ? `\nDiscount: ${b.discount}%` : "";
     const msg = `Hi ${b.customerName}! 🧾\n\nHere's your bill from Life Style Studio:\n${servicesText}\nAmount: ₹${b.amount.toLocaleString("en-IN")}${discountText}\n*Total: ₹${(b.finalAmount ?? b.amount).toLocaleString("en-IN")}*\nDate: ${new Date(b.date).toLocaleDateString("en-IN")}\n\nThank you for choosing us! 💫`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+    window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, "whatsapp_bulk");
     toast.success("Opening WhatsApp...");
   };
 

@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useStore, type Customer } from "@/store/useStore";
-import { Send, CheckCircle2, Users, MessageSquare, Sparkles, Search } from "lucide-react";
+import { Send, CheckCircle2, Users, MessageSquare, Sparkles, Search, Pause, Play, SkipForward, XCircle, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 const Messaging = () => {
@@ -16,7 +16,13 @@ const Messaging = () => {
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
-  
+
+  // Queue state
+  const [queue, setQueue] = useState<Customer[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
+  const [isPaused, setIsPaused] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [autoNext, setAutoNext] = useState(true);
 
   const template = templates.find(t => t.id === selectedTemplate);
   const message = template ? template.content : customMessage;
@@ -44,26 +50,67 @@ const Messaging = () => {
     setSelectedCustomers(next);
   };
 
-  const sendMessages = () => {
+  const openWhatsApp = (customer: Customer) => {
+    const personalizedMsg = message.replace(/\{name\}/gi, customer.name);
+    const phone = customer.mobile.replace(/[^0-9]/g, "");
+    
+    // Using web.whatsapp.com/send for direct desktop access
+    // Reusing the same window name 'whatsapp_bulk' ensures single tab usage
+    const waUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(personalizedMsg)}`;
+    window.open(waUrl, "whatsapp_bulk");
+  };
+
+  const startSending = () => {
     if (!message) { toast.error("Please write a message or select a template"); return; }
     if (selectedCustomers.size === 0) { toast.error("Please select at least one client"); return; }
 
-    setSending(true);
     const selected = customers.filter(c => selectedCustomers.has(c.id));
+    setQueue(selected);
+    setCurrentIndex(0);
+    setSending(true);
+    setIsPaused(false);
+    setTimeLeft(8); // Start with 8 seconds for the first one
 
-    selected.forEach((c, i) => {
-      const personalizedMsg = message.replace(/\{name\}/gi, c.name);
-      const phone = c.mobile.replace(/[^0-9]/g, "");
-      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(personalizedMsg)}`;
-
-      setTimeout(() => {
-        window.open(waUrl, "_blank");
-      }, i * 1500);
-    });
-
-    toast.success(`Opening WhatsApp for ${selected.length} client(s) — allow popups if prompted`);
-    setTimeout(() => setSending(false), selected.length * 1500 + 500);
+    openWhatsApp(selected[0]);
+    toast.success(`Starting bulk send for ${selected.length} clients...`);
   };
+
+  const nextMessage = () => {
+    if (currentIndex < queue.length - 1) {
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
+      setTimeLeft(10); // 10 seconds between messages
+      openWhatsApp(queue[nextIdx]);
+    } else {
+      stopSending();
+      toast.success("Finished sending all messages!");
+    }
+  };
+
+  const stopSending = () => {
+    setSending(false);
+    setCurrentIndex(-1);
+    setQueue([]);
+    setIsPaused(false);
+  };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (sending && !isPaused && currentIndex !== -1 && autoNext) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            nextMessage();
+            return 10;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => clearInterval(interval);
+  }, [sending, isPaused, currentIndex, autoNext, queue.length]);
 
   const previewMessage = (name: string) => message.replace(/\{name\}/gi, name);
 
@@ -75,6 +122,76 @@ const Messaging = () => {
           <p className="page-subtitle">Send personalized WhatsApp messages to multiple clients at once</p>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {sending && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-8"
+          >
+            <div className="glass-card p-6 border-accent/30 bg-accent/5">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 rounded-full border-4 border-accent/20 border-t-accent animate-spin flex items-center justify-center relative">
+                    <div className="absolute inset-0 flex items-center justify-center animate-none">
+                      <span className="text-sm font-bold font-display">{timeLeft}s</span>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-display text-xl font-bold">Sending in progress...</h3>
+                    <p className="text-sm text-muted-foreground font-body">
+                      Client {currentIndex + 1} of {queue.length}: <span className="text-foreground font-semibold">{queue[currentIndex]?.name}</span>
+                    </p>
+                    <div className="w-full bg-muted h-1.5 rounded-full mt-2 overflow-hidden">
+                      <motion.div 
+                        className="h-full bg-accent"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${((currentIndex + 1) / queue.length) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsPaused(!isPaused)}
+                    className="h-10 px-4 border-accent/20 hover:bg-accent/10"
+                  >
+                    {isPaused ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
+                    {isPaused ? "Resume" : "Pause"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={nextMessage}
+                    className="h-10 px-4 border-accent/20 hover:bg-accent/10"
+                  >
+                    <SkipForward className="h-4 w-4 mr-2" />
+                    Skip
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={stopSending}
+                    className="h-10 px-4"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Stop
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border flex items-center gap-2 text-xs text-muted-foreground font-body">
+                <Timer className="h-3.5 w-3.5" />
+                <span>Tip: Reuses a single WhatsApp tab. If you have an auto-send extension, it will work automatically.</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Compose */}
@@ -133,11 +250,16 @@ const Messaging = () => {
 
               <div className="rounded-xl bg-muted/30 p-3 border border-border">
                 <p className="text-[10px] font-body text-muted-foreground tracking-wider uppercase mb-1">How it works</p>
-                <p className="text-xs font-body text-foreground">Same message goes to all selected clients. Each client sees <strong>their own name</strong> in place of {"{name}"}. WhatsApp opens separately for each client.</p>
+                <p className="text-xs font-body text-foreground">Uses a <strong>single WhatsApp tab</strong> and automatically moves to the next client every 10 seconds. You just need to click send in WhatsApp (or use an extension to automate it).</p>
+              </div>
+
+              <div className="flex items-center gap-2 px-1 mb-1">
+                <Checkbox id="auto-next" checked={autoNext} onCheckedChange={(v) => setAutoNext(!!v)} />
+                <label htmlFor="auto-next" className="text-xs font-body cursor-pointer">Auto-progress to next client</label>
               </div>
 
               <Button
-                onClick={sendMessages}
+                onClick={startSending}
                 disabled={sending || !message || selectedCustomers.size === 0}
                 className="w-full h-12 bg-[hsl(142,70%,40%)] text-white hover:bg-[hsl(142,70%,35%)] font-body tracking-wider text-sm shadow-lg"
               >
