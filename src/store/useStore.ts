@@ -34,6 +34,8 @@ export interface Billing {
   customerName: string;
   services: string[];
   amount: number;
+  discount: number;
+  finalAmount: number;
   date: string;
   notes?: string;
 }
@@ -66,6 +68,7 @@ interface AppState {
   updateSalonService: (id: string, data: Partial<SalonService>) => void;
   addBilling: (billing: Omit<Billing, 'id'>) => void;
   deleteBilling: (id: string) => void;
+  updateBilling: (id: string, data: Partial<Billing>) => void;
   addMembership: (membership: Omit<Membership, 'id'>) => void;
   deleteMembership: (id: string) => void;
   updateMembership: (id: string, data: Partial<Membership>) => void;
@@ -155,6 +158,12 @@ export const useStore = create<AppState>((set, get) => ({
 
   deleteBilling: (id) => set((state) => {
     const updated = state.billings.filter(b => b.id !== id);
+    saveState('ls-billings', updated);
+    return { billings: updated };
+  }),
+
+  updateBilling: (id, data) => set((state) => {
+    const updated = state.billings.map(b => b.id === id ? { ...b, ...data } : b);
     saveState('ls-billings', updated);
     return { billings: updated };
   }),

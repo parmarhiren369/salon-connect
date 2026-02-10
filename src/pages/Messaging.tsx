@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
-import { Send, CheckCircle2, Users, MessageSquare, Sparkles } from "lucide-react";
+import { Send, CheckCircle2, Users, MessageSquare, Sparkles, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,16 +15,26 @@ const Messaging = () => {
   const [customMessage, setCustomMessage] = useState("");
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
+  const [search, setSearch] = useState("");
 
   const template = templates.find(t => t.id === selectedTemplate);
   const message = template ? template.content : customMessage;
 
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.mobile.includes(search)
+  );
+
   const toggleAll = () => {
-    if (selectedCustomers.size === customers.length) {
-      setSelectedCustomers(new Set());
+    const ids = filteredCustomers.map(c => c.id);
+    const allSelected = ids.every(id => selectedCustomers.has(id));
+    const next = new Set(selectedCustomers);
+    if (allSelected) {
+      ids.forEach(id => next.delete(id));
     } else {
-      setSelectedCustomers(new Set(customers.map(c => c.id)));
+      ids.forEach(id => next.add(id));
     }
+    setSelectedCustomers(next);
   };
 
   const toggleCustomer = (id: string) => {
@@ -49,7 +60,7 @@ const Messaging = () => {
       }, i * 800);
     });
 
-    toast.success(`Opening WhatsApp for ${selected.length} client(s)`);
+    toast.success(`Opening WhatsApp for ${selected.length} client(s) — each with their personalized name`);
     setTimeout(() => setSending(false), selected.length * 800 + 500);
   };
 
@@ -60,7 +71,7 @@ const Messaging = () => {
       <div className="page-header">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="page-title">Messaging</h1>
-          <p className="page-subtitle">Send personalized WhatsApp messages to your clients</p>
+          <p className="page-subtitle">Send personalized WhatsApp messages to multiple clients at once</p>
         </motion.div>
       </div>
 
@@ -103,7 +114,7 @@ const Messaging = () => {
                     rows={5}
                     className="text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground mt-1 tracking-wider font-body">Use {"{name}"} for personalization</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 tracking-wider font-body">Use {"{name}"} — each client gets their own name automatically</p>
                 </div>
               )}
 
@@ -119,10 +130,15 @@ const Messaging = () => {
                 </div>
               )}
 
+              <div className="rounded-xl bg-muted/30 p-3 border border-border">
+                <p className="text-[10px] font-body text-muted-foreground tracking-wider uppercase mb-1">How it works</p>
+                <p className="text-xs font-body text-foreground">Same message goes to all selected clients. Each client sees <strong>their own name</strong> in place of {"{name}"}. WhatsApp opens separately for each client.</p>
+              </div>
+
               <Button
                 onClick={sendMessages}
                 disabled={sending || !message || selectedCustomers.size === 0}
-                className="w-full h-12 bg-[hsl(142,70%,40%)] text-accent-foreground hover:bg-[hsl(142,70%,35%)] font-body tracking-wider text-sm shadow-lg"
+                className="w-full h-12 bg-[hsl(142,70%,40%)] text-white hover:bg-[hsl(142,70%,35%)] font-body tracking-wider text-sm shadow-lg"
               >
                 <Send className="h-4 w-4 mr-2" />
                 {sending ? "Sending..." : `Send to ${selectedCustomers.size} Client(s)`}
@@ -141,9 +157,15 @@ const Messaging = () => {
                 <Sparkles className="h-4 w-4 text-accent" />
                 Live Preview
               </h3>
-              <div className="bg-[hsl(142,50%,95%)] rounded-xl p-4 text-sm font-body border border-[hsl(142,30%,85%)]">
-                {previewMessage(customers.find(c => selectedCustomers.has(c.id))?.name || "Client")}
-              </div>
+              {customers.filter(c => selectedCustomers.has(c.id)).slice(0, 3).map(c => (
+                <div key={c.id} className="bg-[hsl(142,50%,95%)] rounded-xl p-3 text-sm font-body border border-[hsl(142,30%,85%)] mb-2">
+                  <p className="text-[10px] font-semibold text-[hsl(142,50%,30%)] mb-1">→ {c.name}</p>
+                  {previewMessage(c.name)}
+                </div>
+              ))}
+              {selectedCustomers.size > 3 && (
+                <p className="text-xs text-muted-foreground font-body mt-1">+{selectedCustomers.size - 3} more clients...</p>
+              )}
             </motion.div>
           )}
         </motion.div>
@@ -155,37 +177,43 @@ const Messaging = () => {
           className="lg:col-span-2"
         >
           <div className="glass-card overflow-hidden">
-            <div className="p-6 border-b border-border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg gold-gradient flex items-center justify-center">
-                  <Users className="h-4 w-4 text-accent-foreground" />
+            <div className="p-6 border-b border-border">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg gold-gradient flex items-center justify-center">
+                    <Users className="h-4 w-4 text-accent-foreground" />
+                  </div>
+                  <div>
+                    <h2 className="font-display text-xl font-semibold">Select Clients</h2>
+                    <p className="text-[10px] text-muted-foreground tracking-wider font-body">
+                      {selectedCustomers.size} of {customers.length} selected
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="font-display text-xl font-semibold">Select Clients</h2>
-                  <p className="text-[10px] text-muted-foreground tracking-wider font-body">
-                    {selectedCustomers.size} of {customers.length} selected
-                  </p>
-                </div>
+                <button
+                  onClick={toggleAll}
+                  className="text-xs font-body font-semibold tracking-wider uppercase text-accent hover:text-gold-dark transition-colors px-3 py-1.5 rounded-lg hover:bg-accent/10"
+                >
+                  {filteredCustomers.every(c => selectedCustomers.has(c.id)) && filteredCustomers.length > 0 ? "Deselect All" : "Select All"}
+                </button>
               </div>
-              <button
-                onClick={toggleAll}
-                className="text-xs font-body font-semibold tracking-wider uppercase text-accent hover:text-gold-dark transition-colors px-3 py-1.5 rounded-lg hover:bg-accent/10"
-              >
-                {selectedCustomers.size === customers.length ? "Deselect All" : "Select All"}
-              </button>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients by name or mobile..." className="pl-10 h-10 text-sm" />
+              </div>
             </div>
 
-            {customers.length === 0 ? (
+            {filteredCustomers.length === 0 ? (
               <div className="p-16 text-center">
                 <div className="avatar-circle mx-auto mb-4 h-16 w-16">
                   <Users className="h-7 w-7 text-accent-foreground" />
                 </div>
-                <p className="font-display text-xl text-foreground mb-1">No clients yet</p>
+                <p className="font-display text-xl text-foreground mb-1">No clients found</p>
                 <p className="font-body text-sm text-muted-foreground">Add clients first to start messaging</p>
               </div>
             ) : (
               <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
-                {customers.map(c => (
+                {filteredCustomers.map(c => (
                   <label
                     key={c.id}
                     className={`flex items-center gap-4 px-6 py-4 cursor-pointer transition-colors ${
