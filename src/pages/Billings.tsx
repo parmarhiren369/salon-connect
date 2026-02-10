@@ -22,6 +22,7 @@ const Billings = () => {
   const [form, setForm] = useState({
     customerId: "",
     selectedServices: [] as { id: string; name: string; price: number }[],
+    discount: 0,
     date: new Date().toISOString().split("T")[0]
   });
 
@@ -36,7 +37,9 @@ const Billings = () => {
 
   const totalRevenue = filtered.reduce((sum, b) => sum + parseFloat(b.amount), 0);
 
-  const totalAmount = form.selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const subtotal = form.selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const discountAmount = (subtotal * (form.discount || 0)) / 100;
+  const totalAmount = subtotal - discountAmount;
 
   const addService = (service: { id: string; name: string; price: number }) => {
     if (!form.selectedServices.find(s => s.id === service.id)) {
@@ -63,11 +66,12 @@ const Billings = () => {
     addBilling({
       customerId: form.customerId,
       service: serviceNames,
-      amount: totalAmount.toString(),
+      amount: totalAmount.toFixed(2),
+      discount: form.discount,
       date: form.date
     });
     toast.success("Billing added successfully");
-    setForm({ customerId: "", selectedServices: [], date: new Date().toISOString().split("T")[0] });
+    setForm({ customerId: "", selectedServices: [], discount: 0, date: new Date().toISOString().split("T")[0] });
     setOpen(false);
   };
 
@@ -164,12 +168,37 @@ const Billings = () => {
                         </div>
                       </div>
                     ))}
-                    <div className="flex items-center justify-between pt-2 border-t border-border">
-                      <span className="font-semibold">Total Amount:</span>
-                      <span className="text-lg font-bold text-accent">₹{totalAmount}</span>
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Subtotal:</span>
+                        <span className="text-sm font-medium">₹{subtotal.toFixed(2)}</span>
+                      </div>
+                      {form.discount > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Discount ({form.discount}%):</span>
+                          <span className="text-sm font-medium text-destructive">-₹{discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-2 border-t border-border">
+                        <span className="font-semibold">Final Amount:</span>
+                        <span className="text-lg font-bold text-accent">₹{totalAmount.toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
                 )}
+              </div>
+              <div>
+                <label className="form-label">Discount (%)</label>
+                <Input
+                  type="number"
+                  value={form.discount}
+                  onChange={e => setForm({ ...form, discount: parseFloat(e.target.value) || 0 })}
+                  placeholder="0"
+                  className="h-11"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                />
               </div>
               <div>
                 <label className="form-label">Date *</label>

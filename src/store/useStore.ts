@@ -24,6 +24,7 @@ export interface Billing {
   customerId: string;
   service: string;
   amount: string;
+  discount?: number;
   date: string;
 }
 
