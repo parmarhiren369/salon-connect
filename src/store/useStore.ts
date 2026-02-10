@@ -5,6 +5,7 @@ export interface Customer {
   name: string;
   mobile: string;
   date: string;
+  birthday?: string; // Format: MM-DD
   services?: string;
   notes?: string;
 }
@@ -17,15 +18,26 @@ export interface MessageTemplate {
   imageUrl?: string;
 }
 
+export interface Billing {
+  id: string;
+  customerId: string;
+  service: string;
+  amount: string;
+  date: string;
+}
+
 interface AppState {
   customers: Customer[];
   templates: MessageTemplate[];
+  billings: Billing[];
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
   deleteCustomer: (id: string) => void;
   updateCustomer: (id: string, data: Partial<Customer>) => void;
   addTemplate: (template: Omit<MessageTemplate, 'id'>) => void;
   deleteTemplate: (id: string) => void;
   updateTemplate: (id: string, data: Partial<MessageTemplate>) => void;
+  addBilling: (billing: Omit<Billing, 'id'>) => void;
+  deleteBilling: (id: string) => void;
 }
 
 const loadState = <T>(key: string, fallback: T): T => {
@@ -41,6 +53,7 @@ const saveState = (key: string, value: unknown) => {
 
 export const useStore = create<AppState>((set, get) => ({
   customers: loadState<Customer[]>('ls-customers', []),
+  billings: loadState<Billing[]>('ls-billings', []),
   templates: loadState<MessageTemplate[]>('ls-templates', [
     { id: '1', name: 'Grand Sale', content: 'Hi {name}! 🎉 Grand Sale at Life Style Studio! Get up to 50% OFF on all services. Book now! Call us to reserve your slot.', category: 'sale' },
     { id: '2', name: 'Festival Offer', content: 'Dear {name}, ✨ Celebrate this festive season with Life Style Studio! Special packages starting from ₹999. Limited slots available!', category: 'festival' },
@@ -81,5 +94,17 @@ export const useStore = create<AppState>((set, get) => ({
     const updated = state.templates.map(t => t.id === id ? { ...t, ...data } : t);
     saveState('ls-templates', updated);
     return { templates: updated };
+  }),
+
+  addBilling: (billing) => set((state) => {
+    const updated = [...state.billings, { ...billing, id: crypto.randomUUID() }];
+    saveState('ls-billings', updated);
+    return { billings: updated };
+  }),
+
+  deleteBilling: (id) => set((state) => {
+    const updated = state.billings.filter(b => b.id !== id);
+    saveState('ls-billings', updated);
+    return { billings: updated };
   }),
 }));

@@ -1,5 +1,5 @@
 import { useStore } from "@/store/useStore";
-import { Users, FileText, MessageSquare, TrendingUp, ArrowUpRight, Calendar } from "lucide-react";
+import { Users, FileText, MessageSquare, TrendingUp, ArrowUpRight, Calendar, Cake } from "lucide-react";
 import { motion } from "framer-motion";
 
 const Dashboard = () => {
@@ -10,6 +10,27 @@ const Dashboard = () => {
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
+
+  // Get customers with birthdays in next 7 days
+  const upcomingBirthdays = customers.filter(c => {
+    if (!c.birthday) return false;
+    
+    const today = new Date();
+    const birthdayDate = new Date(c.birthday);
+    const thisYearBirthday = new Date(today.getFullYear(), birthdayDate.getMonth(), birthdayDate.getDate());
+    
+    // If birthday already passed this year, check next year
+    if (thisYearBirthday < today) {
+      thisYearBirthday.setFullYear(today.getFullYear() + 1);
+    }
+    
+    const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntil >= 0 && daysUntil <= 7;
+  }).sort((a, b) => {
+    const dateA = new Date(a.birthday!);
+    const dateB = new Date(b.birthday!);
+    return dateA.getTime() - dateB.getTime();
+  });
 
   const stats = [
     { label: "Total Clients", value: customers.length, icon: Users, subtitle: "All registered" },
@@ -106,6 +127,63 @@ const Dashboard = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Upcoming Birthdays */}
+      {upcomingBirthdays.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="glass-card overflow-hidden mt-8"
+        >
+          <div className="p-6 border-b border-border flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-display font-semibold">Upcoming Birthdays 🎉</h2>
+              <p className="text-xs text-muted-foreground font-body tracking-wider mt-1">Birthdays in the next 7 days</p>
+            </div>
+            <Cake className="h-5 w-5 text-accent" />
+          </div>
+          <div className="divide-y divide-border">
+            {upcomingBirthdays.map((c, i) => {
+              const birthdayDate = new Date(c.birthday!);
+              const today = new Date();
+              const thisYearBirthday = new Date(today.getFullYear(), birthdayDate.getMonth(), birthdayDate.getDate());
+              if (thisYearBirthday < today) {
+                thisYearBirthday.setFullYear(today.getFullYear() + 1);
+              }
+              const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              
+              return (
+                <motion.div
+                  key={c.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 + i * 0.05 }}
+                  className="px-6 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="avatar-circle">
+                      <span className="avatar-text">{c.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div>
+                      <p className="font-body font-semibold text-foreground text-sm">{c.name}</p>
+                      <p className="text-xs text-muted-foreground font-body tracking-wide">{c.mobile}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-body font-semibold text-accent">
+                      {daysUntil === 0 ? "Today! 🎂" : daysUntil === 1 ? "Tomorrow" : `In ${daysUntil} days`}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-body mt-0.5">
+                      {thisYearBirthday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };

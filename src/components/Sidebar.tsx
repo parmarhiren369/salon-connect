@@ -1,16 +1,32 @@
-import { NavLink, useLocation } from "react-router-dom";
-import { Users, LayoutDashboard, MessageSquare, FileText, Sparkles } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Users, LayoutDashboard, MessageSquare, FileText, Sparkles, LogOut, Receipt } from "lucide-react";
+import { useFirebase } from "@/lib/firebase-context";
+import { signOut } from "firebase/auth";
+import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/customers", icon: Users, label: "Clients" },
+  { to: "/billings", icon: Receipt, label: "Billings" },
   { to: "/templates", icon: FileText, label: "Templates" },
   { to: "/messaging", icon: MessageSquare, label: "Messaging" },
 ];
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { auth } = useFirebase();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast.success("Logged out successfully");
+      navigate("/login");
+    } catch (error) {
+      toast.error("Failed to logout");
+    }
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-72 bg-sidebar flex flex-col">
@@ -46,14 +62,21 @@ const Sidebar = () => {
               <Icon className={`h-5 w-5 relative z-10 transition-transform duration-300 group-hover:scale-110 ${active ? "text-sidebar-primary-foreground" : ""}`} />
               <span className="relative z-10 font-medium">{label}</span>
               {active && (
-                <div className="absolute right-3 h-2 w-2 rounded-full bg-sidebar-primary-foreground/50 relative z-10" />
+                <div className="absolute right-3 h-2 w-2 rounded-full bg-sidebar-primary-foreground/50 z-10" />
               )}
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="p-6 border-t border-sidebar-border">
+      <div className="p-6 border-t border-sidebar-border space-y-4">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-body tracking-wider transition-all duration-300 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 group"
+        >
+          <LogOut className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+          <span className="font-medium">Logout</span>
+        </button>
         <div className="text-center">
           <p className="text-[10px] text-sidebar-foreground/30 font-body tracking-[0.4em] uppercase">
             Life Style Studio

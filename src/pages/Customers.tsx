@@ -12,7 +12,7 @@ const Customers = () => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], services: "", notes: "" });
+  const [form, setForm] = useState({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], birthday: "", notes: "" });
 
   const filtered = customers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -30,12 +30,12 @@ const Customers = () => {
       addCustomer(form);
       toast.success("Client added successfully");
     }
-    setForm({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], services: "", notes: "" });
+    setForm({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], birthday: "", notes: "" });
     setOpen(false);
   };
 
   const startEdit = (c: Customer) => {
-    setForm({ name: c.name, mobile: c.mobile, date: c.date, services: c.services || "", notes: c.notes || "" });
+    setForm({ name: c.name, mobile: c.mobile, date: c.date, birthday: c.birthday || "", notes: c.notes || "" });
     setEditId(c.id);
     setOpen(true);
   };
@@ -48,7 +48,7 @@ const Customers = () => {
           <p className="page-subtitle">{customers.length} total clients registered</p>
         </motion.div>
 
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], services: "", notes: "" }); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], birthday: "", notes: "" }); } }}>
           <DialogTrigger asChild>
             <Button className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6">
               <UserPlus className="h-4 w-4 mr-2" /> Add Client
@@ -72,8 +72,8 @@ const Customers = () => {
                 <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="h-11" />
               </div>
               <div>
-                <label className="form-label">Services</label>
-                <Input value={form.services} onChange={e => setForm({ ...form, services: e.target.value })} placeholder="Hair, Makeup, etc." className="h-11" />
+                <label className="form-label">Birthday (Optional)</label>
+                <Input type="date" value={form.birthday} onChange={e => setForm({ ...form, birthday: e.target.value })} className="h-11" placeholder="MM-DD" />
               </div>
               <div>
                 <label className="form-label">Notes</label>
