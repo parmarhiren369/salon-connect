@@ -35,7 +35,7 @@ const Billings = () => {
     return matchesService && matchesDateRange;
   });
 
-  const totalRevenue = filtered.reduce((sum, b) => sum + parseFloat(b.amount), 0);
+  const totalRevenue = filtered.reduce((sum, b) => sum + parseFloat(String(b.amount)), 0);
 
   const subtotal = form.selectedServices.reduce((sum, s) => sum + s.price, 0);
   const discountAmount = (subtotal * (form.discount || 0)) / 100;
@@ -338,7 +338,7 @@ const Billings = () => {
                     </td>
                     <td className="p-4 font-body text-sm font-medium">{getCustomerName(b.customerId)}</td>
                     <td className="p-4 font-body text-sm">{b.service}</td>
-                    <td className="p-4 font-body text-sm font-semibold text-right">₹{parseFloat(b.amount).toFixed(2)}</td>
+                    <td className="p-4 font-body text-sm font-semibold text-right">₹{parseFloat(String(b.amount)).toFixed(2)}</td>
                   </motion.tr>
                 ))
               )}

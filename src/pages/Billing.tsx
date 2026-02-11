@@ -26,13 +26,13 @@ const Billing = () => {
     return billings.filter(b => {
       const d = new Date(b.date);
       const inRange = d >= new Date(startDate) && d <= new Date(endDate + "T23:59:59");
-      const matchesSearch = !search || b.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      const matchesSearch = !search || (b.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
         customers.find(c => c.id === b.customerId)?.mobile.includes(search);
       return inRange && matchesSearch;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [billings, startDate, endDate, search, customers]);
 
-  const totalRevenue = filtered.reduce((sum, b) => sum + (b.finalAmount ?? b.amount), 0);
+  const totalRevenue = filtered.reduce((sum, b) => sum + (b.finalAmount ?? (typeof b.amount === 'string' ? parseFloat(b.amount) : b.amount)), 0);
 
   const calcFinal = (amt: string, disc: string) => {
     const a = parseFloat(amt) || 0;
@@ -56,7 +56,7 @@ const Billing = () => {
   const startEdit = (b: BillingType) => {
     setForm({
       customerId: b.customerId,
-      services: b.services,
+      services: b.services || (b.service ? b.service.split(', ') : []),
       amount: b.amount.toString(),
       discount: (b.discount ?? 0).toString(),
       date: b.date,
@@ -76,6 +76,7 @@ const Billing = () => {
     const data = {
       customerId: form.customerId,
       customerName: customer?.name || "Unknown",
+      service: form.services.join(", "),
       services: form.services,
       amount, discount, finalAmount,
       date: form.date,
@@ -96,9 +97,12 @@ const Billing = () => {
     const customer = customers.find(c => c.id === b.customerId);
     if (!customer) { toast.error("Customer not found"); return; }
     const phone = customer.mobile.replace(/[^0-9]/g, "");
-    const servicesText = b.services.length > 0 ? `\nServices: ${b.services.join(", ")}` : "";
+    const servicesText = (b.services && b.services.length > 0) ? `\nServices: ${b.services.join(", ")}` : (b.service ? `\nServices: ${b.service}` : "");
     const discountText = (b.discount ?? 0) > 0 ? `\nDiscount: ${b.discount}%` : "";
-    const msg = `Hi ${b.customerName}! 🧾\n\nHere's your bill from Life Style Studio:\n${servicesText}\nAmount: ₹${b.amount.toLocaleString("en-IN")}${discountText}\n*Total: ₹${(b.finalAmount ?? b.amount).toLocaleString("en-IN")}*\nDate: ${new Date(b.date).toLocaleDateString("en-IN")}\n\nThank you for choosing us! 💫`;
+    const customerName = b.customerName || customer?.name || "Customer";
+    const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
+    const finalAmt = b.finalAmount ?? amt;
+    const msg = `Hi ${customerName}! 🧾\n\nHere's your bill from Life Style Studio:\n${servicesText}\nAmount: ₹${amt.toLocaleString("en-IN")}${discountText}\n*Total: ₹${finalAmt.toLocaleString("en-IN")}*\nDate: ${new Date(b.date).toLocaleDateString("en-IN")}\n\nThank you for choosing us! 💫`;
     window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, "whatsapp_bulk");
     toast.success("Opening WhatsApp...");
   };
@@ -246,10 +250,10 @@ const Billing = () => {
                 >
                   <div className="flex items-center gap-4">
                     <div className="avatar-circle h-10 w-10 shrink-0">
-                      <span className="avatar-text text-xs">{b.customerName.charAt(0).toUpperCase()}</span>
+                      <span className="avatar-text text-xs">{(b.customerName || customers.find(c=>c.id===b.customerId)?.name || '?').charAt(0).toUpperCase()}</span>
                     </div>
                     <div>
-                      <p className="font-body font-semibold text-foreground text-sm">{b.customerName}</p>
+                      <p className="font-body font-semibold text-foreground text-sm">{b.customerName || customers.find(c=>c.id===b.customerId)?.name || 'Unknown'}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <CalendarIcon className="h-3 w-3 text-accent" />
                         <span className="text-xs text-muted-foreground font-body">{new Date(b.date).toLocaleDateString('en-IN')}</span>
@@ -257,7 +261,7 @@ const Billing = () => {
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-body font-medium">{b.discount}% OFF</span>
                         )}
                       </div>
-                      {b.services.length > 0 && (
+                      {(b.services && b.services.length > 0) && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {b.services.map((s, si) => (
                             <span key={si} className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-body font-medium">{s}</span>
@@ -266,19 +270,19 @@ const Billing = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      {(b.discount ?? 0) > 0 && (
-                        <div className="flex items-center gap-1 text-muted-foreground font-body text-xs line-through">
-                          <IndianRupee className="h-3 w-3" />
-                          {b.amount.toLocaleString('en-IN')}
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        {(b.discount ?? 0) > 0 && (
+                          <div className="flex items-center gap-1 text-muted-foreground font-body text-xs line-through">
+                            <IndianRupee className="h-3 w-3" />
+                            {(typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount))).toLocaleString('en-IN')}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 text-foreground font-display font-bold text-lg">
+                          <IndianRupee className="h-4 w-4" />
+                          {(b.finalAmount ?? (typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount)))).toLocaleString('en-IN')}
                         </div>
-                      )}
-                      <div className="flex items-center gap-1 text-foreground font-display font-bold text-lg">
-                        <IndianRupee className="h-4 w-4" />
-                        {(b.finalAmount ?? b.amount).toLocaleString('en-IN')}
                       </div>
-                    </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => sendBillToWhatsApp(b)}
                         className="p-2 rounded-lg hover:bg-[hsl(142,50%,90%)] transition-all text-muted-foreground hover:text-[hsl(142,70%,35%)]"

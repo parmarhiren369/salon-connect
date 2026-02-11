@@ -13,6 +13,7 @@ import Billings from "./pages/Billings";
 import Birthdays from "./pages/Birthdays";
 import Templates from "./pages/Templates";
 import Messaging from "./pages/Messaging";
+import Memberships from "./pages/Memberships";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -63,6 +64,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Billings />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/memberships"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Memberships />
                   </Layout>
                 </ProtectedRoute>
               }
