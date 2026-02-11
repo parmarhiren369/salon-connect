@@ -7,8 +7,20 @@ export interface Customer {
   date: string;
   birthday?: string;
   anniversary?: string;
+  reference?: string;
   services?: string;
   notes?: string;
+}
+
+export interface Membership {
+  id: string;
+  customerId: string;
+  customerName: string;
+  plan: string;
+  startDate: string;
+  endDate: string;
+  amount: number;
+  status: 'active' | 'expired';
 }
 
 export interface MessageTemplate {
@@ -22,10 +34,14 @@ export interface MessageTemplate {
 export interface Billing {
   id: string;
   customerId: string;
+  customerName?: string;
   service: string;
-  amount: string;
+  services?: string[];
+  amount: string | number;
   discount?: number;
+  finalAmount?: number;
   date: string;
+  notes?: string;
 }
 
 export interface SalonService {
@@ -40,6 +56,7 @@ interface AppState {
   templates: MessageTemplate[];
   billings: Billing[];
   salonServices: SalonService[];
+  memberships: Membership[];
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
   deleteCustomer: (id: string) => void;
   updateCustomer: (id: string, data: Partial<Customer>) => void;
@@ -48,9 +65,13 @@ interface AppState {
   updateTemplate: (id: string, data: Partial<MessageTemplate>) => void;
   addBilling: (billing: Omit<Billing, 'id'>) => void;
   deleteBilling: (id: string) => void;
+  updateBilling: (id: string, data: Partial<Billing>) => void;
   addSalonService: (service: Omit<SalonService, 'id'>) => void;
   deleteSalonService: (id: string) => void;
   updateSalonService: (id: string, data: Partial<SalonService>) => void;
+  addMembership: (membership: Omit<Membership, 'id'>) => void;
+  deleteMembership: (id: string) => void;
+  updateMembership: (id: string, data: Partial<Membership>) => void;
 }
 
 const loadState = <T>(key: string, fallback: T): T => {
@@ -68,6 +89,7 @@ export const useStore = create<AppState>((set, get) => ({
   customers: loadState<Customer[]>('ls-customers', []),
   billings: loadState<Billing[]>('ls-billings', []),
   salonServices: loadState<SalonService[]>('ls-services', []),
+  memberships: loadState<Membership[]>('ls-memberships', []),
   templates: loadState<MessageTemplate[]>('ls-templates', [
     { id: '1', name: 'Grand Sale', content: 'Hi {name}! 🎉 Grand Sale at Life Style Studio! Get up to 50% OFF on all services. Book now! Call us to reserve your slot.', category: 'sale' },
     { id: '2', name: 'Festival Offer', content: 'Dear {name}, ✨ Celebrate this festive season with Life Style Studio! Special packages starting from ₹999. Limited slots available!', category: 'festival' },
@@ -122,6 +144,12 @@ export const useStore = create<AppState>((set, get) => ({
     return { billings: updated };
   }),
 
+  updateBilling: (id, data) => set((state) => {
+    const updated = state.billings.map(b => b.id === id ? { ...b, ...data } : b);
+    saveState('ls-billings', updated);
+    return { billings: updated };
+  }),
+
   addSalonService: (service) => set((state) => {
     const updated = [...state.salonServices, { ...service, id: crypto.randomUUID() }];
     saveState('ls-services', updated);
@@ -138,5 +166,23 @@ export const useStore = create<AppState>((set, get) => ({
     const updated = state.salonServices.map(s => s.id === id ? { ...s, ...data } : s);
     saveState('ls-services', updated);
     return { salonServices: updated };
+  }),
+
+  addMembership: (membership) => set((state) => {
+    const updated = [...state.memberships, { ...membership, id: crypto.randomUUID() }];
+    saveState('ls-memberships', updated);
+    return { memberships: updated };
+  }),
+
+  deleteMembership: (id) => set((state) => {
+    const updated = state.memberships.filter(m => m.id !== id);
+    saveState('ls-memberships', updated);
+    return { memberships: updated };
+  }),
+
+  updateMembership: (id, data) => set((state) => {
+    const updated = state.memberships.map(m => m.id === id ? { ...m, ...data } : m);
+    saveState('ls-memberships', updated);
+    return { memberships: updated };
   }),
 }));
