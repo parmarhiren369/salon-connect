@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStore, type Customer } from "@/store/useStore";
-import { Send, CheckCircle2, Users, MessageSquare, Sparkles, Search } from "lucide-react";
+import { Send, CheckCircle2, Users, MessageSquare, Sparkles, Search, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -54,17 +54,15 @@ const Messaging = () => {
 
     const selected = customers.filter(c => selectedCustomers.has(c.id));
 
-    // Open all WhatsApp tabs simultaneously
+    // Open SMS for each selected client
     selected.forEach((customer) => {
       const personalizedMsg = message.replace(/\{name\}/gi, customer.name);
       const phone = customer.mobile.replace(/[^0-9]/g, "");
-      const waUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(personalizedMsg)}`;
-
-      // Use unique window name for each client to open multiple tabs
-      window.open(waUrl, `whatsapp_${customer.id}`);
+      const smsUrl = `sms:${phone}?body=${encodeURIComponent(personalizedMsg)}`;
+      window.open(smsUrl, `sms_${customer.id}`);
     });
 
-    toast.success(`Opened ${selected.length} WhatsApp tabs! Messages are ready to send.`);
+    toast.success(`Opened SMS for ${selected.length} client(s)! Messages are ready to send.`);
 
     // Clear selections after sending
     setSelectedCustomers(new Set());
@@ -77,7 +75,7 @@ const Messaging = () => {
       <div className="page-header">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="page-title">Messaging</h1>
-          <p className="page-subtitle">Send personalized WhatsApp messages to multiple clients at once</p>
+          <p className="page-subtitle">Send personalized text messages to multiple clients at once</p>
         </motion.div>
       </div>
 
@@ -140,7 +138,7 @@ const Messaging = () => {
 
               <div className="rounded-xl bg-muted/30 p-3 border border-border">
                 <p className="text-[10px] font-body text-muted-foreground tracking-wider uppercase mb-1">How it works</p>
-                <p className="text-xs font-body text-foreground">Opens <strong>all WhatsApp tabs simultaneously</strong> with personalized messages pre-filled. Each client gets their own tab. You can quickly go through and send (or use an auto-send extension).</p>
+                <p className="text-xs font-body text-foreground">Opens <strong>SMS app for each client</strong> with personalized messages pre-filled. Each client gets their own message with their name automatically inserted.</p>
               </div>
 
 
@@ -150,8 +148,8 @@ const Messaging = () => {
                 disabled={!message || selectedCustomers.size === 0}
                 className="w-full h-12 bg-[hsl(142,70%,40%)] text-white hover:bg-[hsl(142,70%,35%)] font-body tracking-wider text-sm shadow-lg"
               >
-                <Send className="h-4 w-4 mr-2" />
-                Send to {selectedCustomers.size} Client(s)
+                <Phone className="h-4 w-4 mr-2" />
+                Send SMS to {selectedCustomers.size} Client(s)
               </Button>
             </div>
           </div>
