@@ -54,17 +54,17 @@ const Messaging = () => {
 
     const selected = customers.filter(c => selectedCustomers.has(c.id));
 
-    // Open SMS for each selected client
-    selected.forEach((customer) => {
-      const personalizedMsg = message.replace(/\{name\}/gi, customer.name);
-      const phone = customer.mobile.replace(/[^0-9]/g, "");
-      const smsUrl = `sms:${phone}?body=${encodeURIComponent(personalizedMsg)}`;
-      window.open(smsUrl, `sms_${customer.id}`);
+    // Build a group SMS with all phone numbers
+    const phones = selected.map(c => {
+      const phone = c.mobile.replace(/[^0-9]/g, "");
+      return phone;
     });
 
-    toast.success(`Opened SMS for ${selected.length} client(s)! Messages are ready to send.`);
+    const personalizedMsg = message.replace(/\{name\}/gi, "");
+    const smsUrl = `sms:${phones.join(",")}?body=${encodeURIComponent(personalizedMsg)}`;
+    window.open(smsUrl, "_blank");
 
-    // Clear selections after sending
+    toast.success(`Opened SMS for ${selected.length} client(s)!`);
     setSelectedCustomers(new Set());
   };
 
