@@ -21,6 +21,7 @@ const Birthdays = () => {
         const daysUntil = Math.ceil((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         return { ...c, isToday, daysUntil, birthDate: d };
       })
+      .filter(c => c.daysUntil >= 0 && c.daysUntil <= 7)
       .sort((a, b) => a.daysUntil - b.daysUntil);
   }, [customers, todayStr]);
 
@@ -36,6 +37,7 @@ const Birthdays = () => {
         const daysUntil = Math.ceil((nextAnniversary.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         return { ...c, isToday, daysUntil, annivDate: d };
       })
+      .filter(c => c.daysUntil >= 0 && c.daysUntil <= 7)
       .sort((a, b) => a.daysUntil - b.daysUntil);
   }, [customers, todayStr]);
 

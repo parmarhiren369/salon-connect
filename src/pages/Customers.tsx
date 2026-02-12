@@ -1,18 +1,29 @@
 import { useState } from "react";
 import { useStore, Customer } from "@/store/useStore";
-import { Plus, Search, Trash2, Edit2, UserPlus, Phone, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Search, Trash2, Edit2, UserPlus, Phone, Calendar as CalendarIcon, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 const Customers = () => {
-  const { customers, addCustomer, deleteCustomer, updateCustomer } = useStore();
+  const { customers, addCustomer, deleteCustomer, updateCustomer, memberships, addMembership, updateMembership, membershipPlans } = useStore();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [membershipOpen, setMembershipOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", mobile: "", date: new Date().toISOString().split("T")[0], birthday: "", anniversary: "", reference: "", notes: "" });
+  const [membershipForm, setMembershipForm] = useState({
+    customerId: "",
+    planId: "",
+    plan: "",
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: "",
+    amount: "",
+    totalBenefits: ""
+  });
 
   const filtered = customers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -38,6 +49,71 @@ const Customers = () => {
     setForm({ name: c.name, mobile: c.mobile, date: c.date, birthday: c.birthday || "", anniversary: c.anniversary || "", reference: c.reference || "", notes: c.notes || "" });
     setEditId(c.id);
     setOpen(true);
+  };
+
+  const startMembership = (c: Customer) => {
+    setMembershipForm({
+      customerId: c.id,
+      planId: "",
+      plan: "",
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: "",
+      amount: "",
+      totalBenefits: ""
+    });
+    setMembershipOpen(true);
+  };
+
+  const handlePlanSelect = (planId: string) => {
+    const plan = membershipPlans.find(p => p.id === planId);
+    if (!plan) return;
+    setMembershipForm(prev => ({
+      ...prev,
+      planId,
+      plan: plan.name,
+      amount: plan.price.toString(),
+      totalBenefits: plan.totalBenefits.toString()
+    }));
+  };
+
+  const handleMembershipSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!membershipForm.customerId || !membershipForm.plan || !membershipForm.endDate || !membershipForm.amount || !membershipForm.totalBenefits) {
+      toast.error("All membership fields are required");
+      return;
+    }
+    const customer = customers.find(c => c.id === membershipForm.customerId);
+    const isExpired = new Date(membershipForm.endDate) < new Date();
+    const existing = memberships
+      .filter(m => m.customerId === membershipForm.customerId)
+      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0];
+
+    const payload = {
+      customerId: membershipForm.customerId,
+      customerName: customer?.name || "Unknown",
+      plan: membershipForm.plan,
+      planId: membershipForm.planId || undefined,
+      startDate: membershipForm.startDate,
+      endDate: membershipForm.endDate,
+      amount: parseFloat(membershipForm.amount),
+      totalBenefits: parseInt(membershipForm.totalBenefits) || 0,
+      usedBenefits: 0,
+      status: isExpired ? "expired" : "active",
+    };
+
+    if (existing) {
+      updateMembership(existing.id, payload);
+      toast.success("Membership updated for client");
+    } else {
+      addMembership(payload);
+      toast.success("Membership assigned to client");
+    }
+
+    setMembershipOpen(false);
+  };
+
+  const getActiveMembership = (customerId: string) => {
+    return memberships.find(m => m.customerId === customerId && new Date(m.endDate) >= new Date());
   };
 
   return (
@@ -159,6 +235,13 @@ const Customers = () => {
                       <CalendarIcon className="h-3 w-3 text-accent" />
                       <span className="text-xs text-muted-foreground font-body">{new Date(c.date).toLocaleDateString()}</span>
                     </div>
+                      {getActiveMembership(c.id) && (
+                        <div className="mt-2">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-body font-medium">
+                            {getActiveMembership(c.id)?.plan}
+                          </span>
+                        </div>
+                      )}
                     {c.services && (
                       <div className="mt-2 flex flex-wrap gap-1">
                         {c.services.split(",").map((s, si) => (
@@ -174,6 +257,9 @@ const Customers = () => {
                   <button onClick={() => startEdit(c)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg hover:bg-muted transition-colors text-xs font-body text-muted-foreground hover:text-foreground">
                     <Edit2 className="h-3.5 w-3.5" /> Edit
                   </button>
+                  <button onClick={() => startMembership(c)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg hover:bg-muted transition-colors text-xs font-body text-muted-foreground hover:text-foreground">
+                    <Crown className="h-3.5 w-3.5" /> Membership
+                  </button>
                   <button onClick={() => { deleteCustomer(c.id); toast.success("Client removed"); }} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg hover:bg-destructive/10 transition-colors text-xs font-body text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" /> Remove
                   </button>
@@ -183,6 +269,61 @@ const Customers = () => {
           </AnimatePresence>
         </div>
       )}
+
+      <Dialog open={membershipOpen} onOpenChange={(v) => { setMembershipOpen(v); if (!v) { setMembershipForm({ customerId: "", planId: "", plan: "", startDate: new Date().toISOString().split("T")[0], endDate: "", amount: "", totalBenefits: "" }); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-3xl">Assign Membership</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleMembershipSubmit} className="space-y-5 mt-4">
+            <div>
+              <label className="form-label">Customer *</label>
+              <Input value={customers.find(c => c.id === membershipForm.customerId)?.name || ""} className="h-11" readOnly />
+            </div>
+            <div>
+              <label className="form-label">Plan *</label>
+              <Select value={membershipForm.planId} onValueChange={handlePlanSelect}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Select plan..." /></SelectTrigger>
+                <SelectContent>
+                  {membershipPlans.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name} — ₹{p.price}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {membershipPlans.length === 0 && (
+                <p className="text-xs text-muted-foreground font-body mt-1">Create a plan in Memberships page first.</p>
+              )}
+            </div>
+            <div>
+              <label className="form-label">Plan Name *</label>
+              <Input value={membershipForm.plan} onChange={e => setMembershipForm({ ...membershipForm, plan: e.target.value })} placeholder="Gold, Platinum..." className="h-11" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">Start Date</label>
+                <Input type="date" value={membershipForm.startDate} onChange={e => setMembershipForm({ ...membershipForm, startDate: e.target.value })} className="h-11" />
+              </div>
+              <div>
+                <label className="form-label">End Date *</label>
+                <Input type="date" value={membershipForm.endDate} onChange={e => setMembershipForm({ ...membershipForm, endDate: e.target.value })} className="h-11" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">Amount (₹) *</label>
+                <Input type="number" value={membershipForm.amount} onChange={e => setMembershipForm({ ...membershipForm, amount: e.target.value })} placeholder="5000" className="h-11" />
+              </div>
+              <div>
+                <label className="form-label">Total Benefits *</label>
+                <Input type="number" value={membershipForm.totalBenefits} onChange={e => setMembershipForm({ ...membershipForm, totalBenefits: e.target.value })} placeholder="10" className="h-11" min="0" />
+              </div>
+            </div>
+            <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
+              Assign Membership
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

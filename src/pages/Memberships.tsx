@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useStore } from "@/store/useStore";
-import { Plus, Trash2, Crown, Calendar as CalendarIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useStore, Membership } from "@/store/useStore";
+import { Plus, Trash2, Crown, Calendar as CalendarIcon, Edit2, CheckCircle2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -9,31 +9,115 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 const Memberships = () => {
-  const { memberships, addMembership, deleteMembership, updateMembership, customers } = useStore();
+  const {
+    memberships,
+    addMembership,
+    deleteMembership,
+    updateMembership,
+    customers,
+    membershipPlans,
+    addMembershipPlan,
+    deleteMembershipPlan,
+    updateMembershipPlan
+  } = useStore();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ customerId: "", plan: "", startDate: new Date().toISOString().split("T")[0], endDate: "", amount: "" });
+  const [planOpen, setPlanOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [planEditId, setPlanEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    customerId: "",
+    planId: "",
+    plan: "",
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: "",
+    amount: "",
+    totalBenefits: "",
+    usedBenefits: "0"
+  });
+  const [planForm, setPlanForm] = useState({ name: "", price: "", totalBenefits: "" });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.customerId || !form.plan || !form.endDate || !form.amount) { toast.error("All fields are required"); return; }
+    if (!form.customerId || !form.plan || !form.endDate || !form.amount || !form.totalBenefits) { toast.error("All fields are required"); return; }
     const customer = customers.find(c => c.id === form.customerId);
     const isExpired = new Date(form.endDate) < new Date();
-    addMembership({
+    const data = {
       customerId: form.customerId,
       customerName: customer?.name || "Unknown",
       plan: form.plan,
+      planId: form.planId || undefined,
       startDate: form.startDate,
       endDate: form.endDate,
       amount: parseFloat(form.amount),
+      totalBenefits: parseInt(form.totalBenefits) || 0,
+      usedBenefits: Math.max(0, parseInt(form.usedBenefits) || 0),
       status: isExpired ? 'expired' : 'active',
-    });
-    toast.success("Membership added");
-    setForm({ customerId: "", plan: "", startDate: new Date().toISOString().split("T")[0], endDate: "", amount: "" });
+    };
+    if (editId) {
+      updateMembership(editId, data);
+      toast.success("Membership updated");
+    } else {
+      addMembership(data);
+      toast.success("Membership added");
+    }
+    setForm({ customerId: "", planId: "", plan: "", startDate: new Date().toISOString().split("T")[0], endDate: "", amount: "", totalBenefits: "", usedBenefits: "0" });
+    setEditId(null);
     setOpen(false);
   };
 
-  const active = memberships.filter(m => m.status === 'active' || new Date(m.endDate) >= new Date());
-  const expired = memberships.filter(m => m.status === 'expired' && new Date(m.endDate) < new Date());
+  const handlePlanSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!planForm.name || !planForm.price || !planForm.totalBenefits) { toast.error("All plan fields are required"); return; }
+    const payload = {
+      name: planForm.name,
+      price: parseFloat(planForm.price),
+      totalBenefits: parseInt(planForm.totalBenefits) || 0
+    };
+    if (planEditId) {
+      updateMembershipPlan(planEditId, payload);
+      toast.success("Plan updated");
+    } else {
+      addMembershipPlan(payload);
+      toast.success("Plan created");
+    }
+    setPlanForm({ name: "", price: "", totalBenefits: "" });
+    setPlanEditId(null);
+    setPlanOpen(false);
+  };
+
+  const startEditMembership = (m: Membership) => {
+    setForm({
+      customerId: m.customerId,
+      planId: m.planId || "",
+      plan: m.plan,
+      startDate: m.startDate,
+      endDate: m.endDate,
+      amount: m.amount.toString(),
+      totalBenefits: (m.totalBenefits ?? 0).toString(),
+      usedBenefits: (m.usedBenefits ?? 0).toString(),
+    });
+    setEditId(m.id);
+    setOpen(true);
+  };
+
+  const handlePlanSelect = (planId: string) => {
+    const plan = membershipPlans.find(p => p.id === planId);
+    if (!plan) return;
+    setForm(prev => ({
+      ...prev,
+      planId,
+      plan: plan.name,
+      amount: plan.price.toString(),
+      totalBenefits: plan.totalBenefits.toString(),
+    }));
+  };
+
+  const active = memberships.filter(m => new Date(m.endDate) >= new Date());
+  const expired = memberships.filter(m => new Date(m.endDate) < new Date());
+
+  const planUsageSummary = useMemo(() => {
+    return memberships.reduce((acc, m) => acc + (m.usedBenefits ?? 0), 0);
+  }, [memberships]);
 
   return (
     <div>
@@ -42,7 +126,7 @@ const Memberships = () => {
           <h1 className="page-title">Memberships</h1>
           <p className="page-subtitle">{memberships.length} total memberships</p>
         </motion.div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); } }}>
           <DialogTrigger asChild>
             <Button className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6">
               <Plus className="h-4 w-4 mr-2" /> Add Membership
@@ -50,7 +134,7 @@ const Memberships = () => {
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="font-display text-3xl">New Membership</DialogTitle>
+              <DialogTitle className="font-display text-3xl">{editId ? "Edit Membership" : "New Membership"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-5 mt-4">
               <div>
@@ -63,6 +147,20 @@ const Memberships = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <label className="form-label">Plan *</label>
+                <Select value={form.planId} onValueChange={handlePlanSelect}>
+                  <SelectTrigger className="h-11"><SelectValue placeholder="Select plan..." /></SelectTrigger>
+                  <SelectContent>
+                    {membershipPlans.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name} — ₹{p.price}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {membershipPlans.length === 0 && (
+                  <p className="text-xs text-muted-foreground font-body mt-1">Create a plan first to assign memberships.</p>
+                )}
               </div>
               <div>
                 <label className="form-label">Plan Name *</label>
@@ -82,12 +180,90 @@ const Memberships = () => {
                 <label className="form-label">Amount (₹) *</label>
                 <Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="5000" className="h-11" />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Total Benefits *</label>
+                  <Input type="number" value={form.totalBenefits} onChange={e => setForm({ ...form, totalBenefits: e.target.value })} placeholder="10" className="h-11" min="0" />
+                </div>
+                <div>
+                  <label className="form-label">Used Benefits</label>
+                  <Input type="number" value={form.usedBenefits} onChange={e => setForm({ ...form, usedBenefits: e.target.value })} placeholder="0" className="h-11" min="0" />
+                </div>
+              </div>
               <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
-                Add Membership
+                {editId ? "Update Membership" : "Add Membership"}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* Membership Plans */}
+      <div className="glass-card p-6 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-display text-2xl">Membership Plans</h2>
+            <p className="text-xs text-muted-foreground font-body">{membershipPlans.length} plan(s) • {planUsageSummary} benefits used</p>
+          </div>
+          <Dialog open={planOpen} onOpenChange={(v) => { setPlanOpen(v); if (!v) { setPlanEditId(null); setPlanForm({ name: "", price: "", totalBenefits: "" }); } }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="h-10 font-body text-xs"><Plus className="h-4 w-4 mr-2" /> New Plan</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="font-display text-3xl">{planEditId ? "Edit Plan" : "New Plan"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handlePlanSubmit} className="space-y-5 mt-4">
+                <div>
+                  <label className="form-label">Plan Name *</label>
+                  <Input value={planForm.name} onChange={e => setPlanForm({ ...planForm, name: e.target.value })} placeholder="Gold, Platinum..." className="h-11" />
+                </div>
+                <div>
+                  <label className="form-label">Price (₹) *</label>
+                  <Input type="number" value={planForm.price} onChange={e => setPlanForm({ ...planForm, price: e.target.value })} placeholder="5000" className="h-11" />
+                </div>
+                <div>
+                  <label className="form-label">Total Benefits *</label>
+                  <Input type="number" value={planForm.totalBenefits} onChange={e => setPlanForm({ ...planForm, totalBenefits: e.target.value })} placeholder="10" className="h-11" min="0" />
+                </div>
+                <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
+                  {planEditId ? "Update Plan" : "Create Plan"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+        {membershipPlans.length === 0 ? (
+          <div className="text-center py-8 text-sm text-muted-foreground font-body">No plans yet. Create one to start assigning memberships.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {membershipPlans.map(p => (
+              <div key={p.id} className="glass-card-hover p-4 border border-border">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-body font-semibold text-foreground text-sm">{p.name}</h3>
+                    <p className="text-xs text-muted-foreground font-body">{p.totalBenefits} benefits</p>
+                  </div>
+                  <span className="text-lg font-display font-bold text-foreground">₹{p.price.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="mt-3 pt-3 border-t border-border flex items-center gap-3">
+                  <button
+                    onClick={() => { setPlanForm({ name: p.name, price: p.price.toString(), totalBenefits: p.totalBenefits.toString() }); setPlanEditId(p.id); setPlanOpen(true); }}
+                    className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" /> Edit
+                  </button>
+                  <button
+                    onClick={() => { deleteMembershipPlan(p.id); toast.success("Plan removed"); }}
+                    className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {memberships.length === 0 ? (
@@ -117,12 +293,36 @@ const Memberships = () => {
                         </div>
                         <span className="text-lg font-display font-bold text-foreground">₹{m.amount.toLocaleString('en-IN')}</span>
                       </div>
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground font-body">
+                          <span>Benefits Used</span>
+                          <span>{m.usedBenefits ?? 0}/{m.totalBenefits ?? 0}</span>
+                        </div>
+                        <div className="mt-2 h-2 rounded-full bg-muted">
+                          <div
+                            className="h-2 rounded-full bg-accent"
+                            style={{ width: `${Math.min(100, ((m.usedBenefits ?? 0) / Math.max(1, (m.totalBenefits ?? 0))) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground font-body">
                         <span className="flex items-center gap-1"><CalendarIcon className="h-3 w-3" /> {new Date(m.startDate).toLocaleDateString('en-IN')}</span>
                         <span>→</span>
                         <span>{new Date(m.endDate).toLocaleDateString('en-IN')}</span>
                       </div>
-                      <div className="mt-3 pt-3 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="mt-3 pt-3 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity flex flex-wrap gap-3">
+                        <button onClick={() => startEditMembership(m)}
+                          className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-foreground transition-colors">
+                          <Edit2 className="h-3.5 w-3.5" /> Edit
+                        </button>
+                        <button onClick={() => updateMembership(m.id, { usedBenefits: Math.min((m.totalBenefits ?? 0), (m.usedBenefits ?? 0) + 1) })}
+                          className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-foreground transition-colors">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Use Benefit
+                        </button>
+                        <button onClick={() => updateMembership(m.id, { usedBenefits: Math.max(0, (m.usedBenefits ?? 0) - 1) })}
+                          className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-foreground transition-colors">
+                          <RotateCcw className="h-3.5 w-3.5" /> Undo
+                        </button>
                         <button onClick={() => { deleteMembership(m.id); toast.success("Membership removed"); }}
                           className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-destructive transition-colors">
                           <Trash2 className="h-3.5 w-3.5" /> Remove

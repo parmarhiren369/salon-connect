@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
-import { Search, Plus, DollarSign, Calendar, TrendingUp, X } from "lucide-react";
+import { Search, Plus, DollarSign, Calendar, TrendingUp, X, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -11,8 +11,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const Billings = () => {
-  const { billings, addBilling, customers, salonServices } = useStore();
+  const { billings, addBilling, updateBilling, deleteBilling, customers, salonServices } = useStore();
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [serviceSearch, setServiceSearch] = useState("");
   const [servicesOpen, setServicesOpen] = useState(false);
   const [dateRange, setDateRange] = useState({
@@ -55,6 +56,32 @@ const Billings = () => {
     });
   };
 
+  const resetForm = () => {
+    setForm({ customerId: "", selectedServices: [], discount: 0, date: new Date().toISOString().split("T")[0] });
+    setEditId(null);
+  };
+
+  const startEdit = (billingId: string) => {
+    const b = billings.find(x => x.id === billingId);
+    if (!b) return;
+    const serviceNames = b.service ? b.service.split(", ") : [];
+    const selected = serviceNames
+      .map(name => salonServices.find(s => s.name === name))
+      .filter(Boolean) as { id: string; name: string; price: number }[];
+    const amountValue = typeof b.amount === "string" ? parseFloat(b.amount) : b.amount;
+    const fallbackSelected = selected.length === 0 && b.service
+      ? [{ id: `custom-${b.id}`, name: b.service, price: amountValue || 0 }]
+      : selected;
+    setForm({
+      customerId: b.customerId,
+      selectedServices: fallbackSelected,
+      discount: b.discount ?? 0,
+      date: b.date
+    });
+    setEditId(b.id);
+    setOpen(true);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.customerId || form.selectedServices.length === 0) {
@@ -63,15 +90,21 @@ const Billings = () => {
     }
     
     const serviceNames = form.selectedServices.map(s => s.name).join(", ");
-    addBilling({
+    const payload = {
       customerId: form.customerId,
       service: serviceNames,
       amount: totalAmount.toFixed(2),
       discount: form.discount,
       date: form.date
-    });
-    toast.success("Billing added successfully");
-    setForm({ customerId: "", selectedServices: [], discount: 0, date: new Date().toISOString().split("T")[0] });
+    };
+    if (editId) {
+      updateBilling(editId, payload);
+      toast.success("Billing updated successfully");
+    } else {
+      addBilling(payload);
+      toast.success("Billing added successfully");
+    }
+    resetForm();
     setOpen(false);
   };
 
@@ -88,7 +121,7 @@ const Billings = () => {
           <p className="page-subtitle">Track services and revenue</p>
         </motion.div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
             <Button className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6">
               <Plus className="h-4 w-4 mr-2" /> Add Billing
@@ -96,7 +129,7 @@ const Billings = () => {
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="font-display text-3xl">New Billing</DialogTitle>
+              <DialogTitle className="font-display text-3xl">{editId ? "Edit Billing" : "New Billing"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-5 mt-4">
               <div>
@@ -210,7 +243,7 @@ const Billings = () => {
                 />
               </div>
               <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
-                Add Billing
+                {editId ? "Update Billing" : "Add Billing"}
               </Button>
             </form>
           </DialogContent>
@@ -309,12 +342,13 @@ const Billings = () => {
                 <th className="text-left p-4 font-body text-sm font-semibold">Client</th>
                 <th className="text-left p-4 font-body text-sm font-semibold">Service</th>
                 <th className="text-right p-4 font-body text-sm font-semibold">Amount</th>
+                <th className="text-right p-4 font-body text-sm font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-12 text-center">
+                  <td colSpan={5} className="p-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="h-16 w-16 rounded-2xl gold-gradient/10 flex items-center justify-center">
                         <DollarSign className="h-8 w-8 text-accent" />
@@ -339,6 +373,20 @@ const Billings = () => {
                     <td className="p-4 font-body text-sm font-medium">{getCustomerName(b.customerId)}</td>
                     <td className="p-4 font-body text-sm">{b.service}</td>
                     <td className="p-4 font-body text-sm font-semibold text-right">₹{parseFloat(String(b.amount)).toFixed(2)}</td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => startEdit(b.id)}
+                          className="p-2 rounded-lg hover:bg-muted transition-all text-muted-foreground hover:text-foreground"
+                          title="Edit billing">
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => { deleteBilling(b.id); toast.success("Billing removed"); }}
+                          className="p-2 rounded-lg hover:bg-destructive/10 transition-all text-muted-foreground hover:text-destructive"
+                          title="Delete billing">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
                   </motion.tr>
                 ))
               )}

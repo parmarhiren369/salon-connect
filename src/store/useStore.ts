@@ -17,10 +17,20 @@ export interface Membership {
   customerId: string;
   customerName: string;
   plan: string;
+  planId?: string;
   startDate: string;
   endDate: string;
   amount: number;
+  totalBenefits?: number;
+  usedBenefits?: number;
   status: 'active' | 'expired';
+}
+
+export interface MembershipPlan {
+  id: string;
+  name: string;
+  price: number;
+  totalBenefits: number;
 }
 
 export interface MessageTemplate {
@@ -57,6 +67,7 @@ interface AppState {
   billings: Billing[];
   salonServices: SalonService[];
   memberships: Membership[];
+  membershipPlans: MembershipPlan[];
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
   deleteCustomer: (id: string) => void;
   updateCustomer: (id: string, data: Partial<Customer>) => void;
@@ -72,6 +83,9 @@ interface AppState {
   addMembership: (membership: Omit<Membership, 'id'>) => void;
   deleteMembership: (id: string) => void;
   updateMembership: (id: string, data: Partial<Membership>) => void;
+  addMembershipPlan: (plan: Omit<MembershipPlan, 'id'>) => void;
+  deleteMembershipPlan: (id: string) => void;
+  updateMembershipPlan: (id: string, data: Partial<MembershipPlan>) => void;
 }
 
 const loadState = <T>(key: string, fallback: T): T => {
@@ -90,6 +104,7 @@ export const useStore = create<AppState>((set, get) => ({
   billings: loadState<Billing[]>('ls-billings', []),
   salonServices: loadState<SalonService[]>('ls-services', []),
   memberships: loadState<Membership[]>('ls-memberships', []),
+  membershipPlans: loadState<MembershipPlan[]>('ls-membership-plans', []),
   templates: loadState<MessageTemplate[]>('ls-templates', [
     { id: '1', name: 'Grand Sale', content: 'Hi {name}! 🎉 Grand Sale at Life Style Studio! Get up to 50% OFF on all services. Book now! Call us to reserve your slot.', category: 'sale' },
     { id: '2', name: 'Festival Offer', content: 'Dear {name}, ✨ Celebrate this festive season with Life Style Studio! Special packages starting from ₹999. Limited slots available!', category: 'festival' },
@@ -184,5 +199,23 @@ export const useStore = create<AppState>((set, get) => ({
     const updated = state.memberships.map(m => m.id === id ? { ...m, ...data } : m);
     saveState('ls-memberships', updated);
     return { memberships: updated };
+  }),
+
+  addMembershipPlan: (plan) => set((state) => {
+    const updated = [...state.membershipPlans, { ...plan, id: crypto.randomUUID() }];
+    saveState('ls-membership-plans', updated);
+    return { membershipPlans: updated };
+  }),
+
+  deleteMembershipPlan: (id) => set((state) => {
+    const updated = state.membershipPlans.filter(p => p.id !== id);
+    saveState('ls-membership-plans', updated);
+    return { membershipPlans: updated };
+  }),
+
+  updateMembershipPlan: (id, data) => set((state) => {
+    const updated = state.membershipPlans.map(p => p.id === id ? { ...p, ...data } : p);
+    saveState('ls-membership-plans', updated);
+    return { membershipPlans: updated };
   }),
 }));
