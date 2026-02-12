@@ -90,6 +90,24 @@ const Customers = () => {
               <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
                 {editId ? "Update Client" : "Add Client"}
               </Button>
+              {!editId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-11 font-body tracking-wider text-sm flex items-center gap-2"
+                  onClick={() => {
+                    const phone = form.mobile.replace(/[^0-9]/g, "");
+                    if (!phone) {
+                      toast.error("Enter mobile number first");
+                      return;
+                    }
+                    window.open(`https://wa.me/${phone.startsWith("91") ? phone : "91" + phone}`, "_blank");
+                    toast.success("Add this contact to your WhatsApp Broadcast List");
+                  }}
+                >
+                  <Phone className="h-4 w-4" /> Add to WhatsApp Broadcast
+                </Button>
+              )}
             </form>
           </DialogContent>
         </Dialog>
