@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils";
 
 const Memberships = () => {
   const {
@@ -306,9 +307,9 @@ const Memberships = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground font-body">
-                        <span className="flex items-center gap-1"><CalendarIcon className="h-3 w-3" /> {new Date(m.startDate).toLocaleDateString('en-IN')}</span>
+                        <span className="flex items-center gap-1"><CalendarIcon className="h-3 w-3" /> {formatDate(m.startDate)}</span>
                         <span>→</span>
-                        <span>{new Date(m.endDate).toLocaleDateString('en-IN')}</span>
+                        <span>{formatDate(m.endDate)}</span>
                       </div>
                       <div className="mt-3 pt-3 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity flex flex-wrap gap-3">
                         <button onClick={() => startEditMembership(m)}
@@ -351,9 +352,9 @@ const Memberships = () => {
                       <span className="text-lg font-display font-bold text-muted-foreground">₹{m.amount.toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground font-body">
-                      <span>{new Date(m.startDate).toLocaleDateString('en-IN')}</span>
+                      <span>{formatDate(m.startDate)}</span>
                       <span>→</span>
-                      <span>{new Date(m.endDate).toLocaleDateString('en-IN')}</span>
+                      <span>{formatDate(m.endDate)}</span>
                     </div>
                   </div>
                 ))}

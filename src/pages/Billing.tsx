@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils";
 
 const Billing = () => {
   const { billings, addBilling, deleteBilling, updateBilling, customers, salonServices } = useStore();
@@ -102,7 +103,7 @@ const Billing = () => {
     const customerName = b.customerName || customer?.name || "Customer";
     const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
     const finalAmt = b.finalAmount ?? amt;
-    const msg = `Hi ${customerName}! 🧾\n\nHere's your bill from Life Style Studio:\n${servicesText}\nAmount: ₹${amt.toLocaleString("en-IN")}${discountText}\n*Total: ₹${finalAmt.toLocaleString("en-IN")}*\nDate: ${new Date(b.date).toLocaleDateString("en-IN")}\n\nThank you for choosing us! 💫`;
+    const msg = `Hi ${customerName}! 🧾\n\nHere's your bill from Life Style Studio:\n${servicesText}\nAmount: ₹${amt.toLocaleString("en-IN")}${discountText}\n*Total: ₹${finalAmt.toLocaleString("en-IN")}*\nDate: ${formatDate(b.date)}\n\nThank you for choosing us! 💫`;
     window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, "whatsapp_bulk");
     toast.success("Opening WhatsApp...");
   };
@@ -256,7 +257,7 @@ const Billing = () => {
                       <p className="font-body font-semibold text-foreground text-sm">{b.customerName || customers.find(c=>c.id===b.customerId)?.name || 'Unknown'}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <CalendarIcon className="h-3 w-3 text-accent" />
-                        <span className="text-xs text-muted-foreground font-body">{new Date(b.date).toLocaleDateString('en-IN')}</span>
+                        <span className="text-xs text-muted-foreground font-body">{formatDate(b.date)}</span>
                         {(b.discount ?? 0) > 0 && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-body font-medium">{b.discount}% OFF</span>
                         )}

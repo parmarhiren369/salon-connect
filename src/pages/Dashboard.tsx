@@ -1,6 +1,7 @@
 import { useStore } from "@/store/useStore";
 import { Users, FileText, MessageSquare, TrendingUp, ArrowUpRight, Calendar, Cake } from "lucide-react";
 import { motion } from "framer-motion";
+import { formatDate } from "@/lib/utils";
 
 const Dashboard = () => {
   const { customers, templates } = useStore();
@@ -117,7 +118,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-muted-foreground font-body">{new Date(c.date).toLocaleDateString()}</span>
+                  <span className="text-xs text-muted-foreground font-body">{formatDate(c.date)}</span>
                   {c.services && (
                     <p className="text-[10px] text-accent font-body font-medium mt-0.5">{c.services}</p>
                   )}
@@ -175,7 +176,7 @@ const Dashboard = () => {
                       {daysUntil === 0 ? "Today! 🎂" : daysUntil === 1 ? "Tomorrow" : `In ${daysUntil} days`}
                     </p>
                     <p className="text-[10px] text-muted-foreground font-body mt-0.5">
-                      {thisYearBirthday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {formatDate(thisYearBirthday)}
                     </p>
                   </div>
                 </motion.div>

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils";
 
 const Customers = () => {
   const { customers, addCustomer, deleteCustomer, updateCustomer, memberships, addMembership, updateMembership, membershipPlans } = useStore();
@@ -233,7 +234,7 @@ const Customers = () => {
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <CalendarIcon className="h-3 w-3 text-accent" />
-                      <span className="text-xs text-muted-foreground font-body">{new Date(c.date).toLocaleDateString()}</span>
+                      <span className="text-xs text-muted-foreground font-body">{formatDate(c.date)}</span>
                     </div>
                       {getActiveMembership(c.id) && (
                         <div className="mt-2">

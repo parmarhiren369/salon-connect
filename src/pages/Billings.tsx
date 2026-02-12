@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatDate } from "@/lib/utils";
 
 const Billings = () => {
   const { billings, addBilling, updateBilling, deleteBilling, customers, salonServices } = useStore();
@@ -368,7 +369,7 @@ const Billings = () => {
                     className="border-b border-border hover:bg-muted/30 transition-colors"
                   >
                     <td className="p-4 font-body text-sm text-muted-foreground">
-                      {new Date(b.date).toLocaleDateString()}
+                      {formatDate(b.date)}
                     </td>
                     <td className="p-4 font-body text-sm font-medium">{getCustomerName(b.customerId)}</td>
                     <td className="p-4 font-body text-sm">{b.service}</td>

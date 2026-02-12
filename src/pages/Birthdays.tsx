@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useStore } from "@/store/useStore";
 import { Cake, Heart, Gift, Calendar as CalendarIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { formatDate } from "@/lib/utils";
 
 const Birthdays = () => {
   const { customers } = useStore();
@@ -85,7 +86,7 @@ const Birthdays = () => {
                       <p className="font-body font-semibold text-foreground text-sm">{c.name}</p>
                       <p className="text-xs text-muted-foreground font-body flex items-center gap-1">
                         <CalendarIcon className="h-3 w-3" />
-                        {c.birthDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        {formatDate(c.birthDate)}
                       </p>
                     </div>
                   </div>
@@ -140,7 +141,7 @@ const Birthdays = () => {
                       <p className="font-body font-semibold text-foreground text-sm">{c.name}</p>
                       <p className="text-xs text-muted-foreground font-body flex items-center gap-1">
                         <CalendarIcon className="h-3 w-3" />
-                        {c.annivDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        {formatDate(c.annivDate)}
                       </p>
                     </div>
                   </div>
