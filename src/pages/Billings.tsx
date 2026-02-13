@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useStore, Billing as BillingType } from "@/store/useStore";
 import { Search, Plus, DollarSign, Calendar, TrendingUp, X, Edit2, Trash2, Send, FileText, CreditCard, Banknote, Smartphone, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ const Billings = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [serviceSearch, setServiceSearch] = useState("");
   const [servicesOpen, setServicesOpen] = useState(false);
+  const [serviceCategory, setServiceCategory] = useState("");
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
     end: new Date().toISOString().split("T")[0]
@@ -58,6 +59,16 @@ const Billings = () => {
   const discountAmount = (subtotal * (form.discount || 0)) / 100;
   const totalAmount = subtotal - discountAmount;
 
+  const serviceCategories = useMemo(() => {
+    const categories = salonServices.map(s => s.category).filter(Boolean) as string[];
+    return Array.from(new Set(categories)).sort((a, b) => a.localeCompare(b));
+  }, [salonServices]);
+
+  const servicesByCategory = useMemo(() => {
+    if (!serviceCategory) return [];
+    return salonServices.filter(s => s.category === serviceCategory);
+  }, [salonServices, serviceCategory]);
+
   const addService = (service: { id: string; name: string; price: number }) => {
     if (!form.selectedServices.find(s => s.id === service.id)) {
       setForm({ ...form, selectedServices: [...form.selectedServices, service] });
@@ -74,6 +85,7 @@ const Billings = () => {
 
   const resetForm = () => {
     setForm({ customerId: "", selectedServices: [], discount: 0, date: new Date().toISOString().split("T")[0], paymentMethod: "cash" });
+    setServiceCategory("");
     setEditId(null);
   };
 
@@ -95,6 +107,8 @@ const Billings = () => {
       date: b.date,
       paymentMethod: b.paymentMethod || "cash"
     });
+    const firstService = fallbackSelected[0];
+    setServiceCategory(firstService ? salonServices.find(s => s.id === firstService.id)?.category || "" : "");
     setEditId(b.id);
     setOpen(true);
   };
@@ -237,6 +251,31 @@ const Billings = () => {
     return doc;
   };
 
+  const buildBillingSummary = (b: BillingType) => {
+    const customer = customers.find(c => c.id === b.customerId);
+    const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
+    const finalAmt = b.finalAmount ?? amt;
+    const services = (b.services && b.services.length > 0) ? b.services : (b.service ? b.service.split(", ") : []);
+    const lineItems = services.map((serviceName) => {
+      const svc = salonServices.find(s => s.name === serviceName);
+      const price = svc ? `₹${svc.price.toLocaleString("en-IN")}` : "—";
+      return `• ${serviceName} (${price})`;
+    }).join("\n");
+    const discountValue = b.discount ?? 0;
+    const discountAmountValue = discountValue > 0 ? Math.round(amt * discountValue / 100) : 0;
+
+    return {
+      customerName: customer?.name || b.customerName || "Customer",
+      total: finalAmt,
+      subtotal: amt,
+      discountValue,
+      discountAmount: discountAmountValue,
+      payment: getPaymentLabel(b.paymentMethod),
+      lineItems,
+      date: formatDate(b.date),
+    };
+  };
+
   const downloadPDF = (b: BillingType) => {
     const customer = customers.find(c => c.id === b.customerId);
     const doc = generatePDF(b);
@@ -252,8 +291,11 @@ const Billings = () => {
     const doc = generatePDF(b);
     doc.save(`invoice-${customer.name.replace(/\s+/g, '-')}-${b.date}.pdf`);
 
-    const finalAmt = b.finalAmount ?? (typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount)));
-    const msg = `Hi ${customer.name}! 🧾\n\nYour invoice from Life Style Studio:\nTotal: ₹${finalAmt.toLocaleString("en-IN")}\nDate: ${formatDate(b.date)}\nPayment: ${getPaymentLabel(b.paymentMethod)}\n\nPlease find the PDF invoice attached. Thank you! 💫`;
+    const summary = buildBillingSummary(b);
+    const discountLine = summary.discountValue > 0
+      ? `Discount (${summary.discountValue}%): -₹${summary.discountAmount.toLocaleString("en-IN")}`
+      : "Discount: —";
+    const msg = `Hi ${summary.customerName}! 🧾\n\nYour bill from Life Style Studio:\n\nServices:\n${summary.lineItems || "• Service"}\n\nSubtotal: ₹${summary.subtotal.toLocaleString("en-IN")}\n${discountLine}\nTotal: ₹${summary.total.toLocaleString("en-IN")}\nPayment: ${summary.payment}\nDate: ${summary.date}\n\nPlease find the PDF invoice attached. Thank you! 💫`;
     window.open(`https://web.whatsapp.com/send?phone=${phone.startsWith("91") ? phone : "91" + phone}&text=${encodeURIComponent(msg)}`, "_blank");
     toast.success("PDF downloaded — attach it in WhatsApp chat");
   };
@@ -291,6 +333,22 @@ const Billings = () => {
                 </Select>
               </div>
               <div>
+                <label className="form-label">Service Category *</label>
+                <Select value={serviceCategory} onValueChange={v => {
+                  setServiceCategory(v);
+                  setForm(prev => ({ ...prev, selectedServices: [] }));
+                }}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select category..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {serviceCategories.map(category => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <label className="form-label">Services *</label>
                 <Popover open={servicesOpen} onOpenChange={setServicesOpen}>
                   <PopoverTrigger asChild>
@@ -298,10 +356,11 @@ const Billings = () => {
                       variant="outline"
                       role="combobox"
                       className="w-full h-11 justify-between font-normal"
+                      disabled={!serviceCategory || servicesByCategory.length === 0}
                     >
                       {form.selectedServices.length > 0
                         ? `${form.selectedServices.length} service(s) selected`
-                        : "Select services..."}
+                        : (serviceCategory ? "Select services..." : "Select category first")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0" align="start">
@@ -309,7 +368,7 @@ const Billings = () => {
                       <CommandInput placeholder="Search services..." />
                       <CommandEmpty>No services found.</CommandEmpty>
                       <CommandGroup className="max-h-64 overflow-auto">
-                        {salonServices.map((service) => (
+                        {servicesByCategory.map((service) => (
                           <CommandItem
                             key={service.id}
                             onSelect={() => addService(service)}

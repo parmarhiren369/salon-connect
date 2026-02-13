@@ -28,6 +28,7 @@ const Billing = () => {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [serviceCategory, setServiceCategory] = useState("");
   const [form, setForm] = useState({
     customerId: "", services: [] as string[], amount: "", discount: "0",
     date: new Date().toISOString().split("T")[0], notes: "",
@@ -50,6 +51,16 @@ const Billing = () => {
 
   const totalRevenue = filtered.reduce((sum, b) => sum + (b.finalAmount ?? (typeof b.amount === 'string' ? parseFloat(b.amount) : b.amount)), 0);
 
+  const serviceCategories = useMemo(() => {
+    const categories = salonServices.map(s => s.category).filter(Boolean) as string[];
+    return Array.from(new Set(categories)).sort((a, b) => a.localeCompare(b));
+  }, [salonServices]);
+
+  const servicesByCategory = useMemo(() => {
+    if (!serviceCategory) return [];
+    return salonServices.filter(s => s.category === serviceCategory);
+  }, [salonServices, serviceCategory]);
+
   const calcFinal = (amt: string, disc: string) => {
     const a = parseFloat(amt) || 0;
     const d = parseFloat(disc) || 0;
@@ -66,19 +77,24 @@ const Billing = () => {
 
   const resetForm = () => {
     setForm({ customerId: "", services: [], amount: "", discount: "0", date: new Date().toISOString().split("T")[0], notes: "", paymentMethod: "cash" });
+    setServiceCategory("");
     setEditId(null);
   };
 
   const startEdit = (b: BillingType) => {
+    const selectedServices = b.services || (b.service ? b.service.split(', ') : []);
+    const firstService = selectedServices[0];
+    const category = firstService ? salonServices.find(s => s.name === firstService)?.category : "";
     setForm({
       customerId: b.customerId,
-      services: b.services || (b.service ? b.service.split(', ') : []),
+      services: selectedServices,
       amount: b.amount.toString(),
       discount: (b.discount ?? 0).toString(),
       date: b.date,
       notes: b.notes || "",
       paymentMethod: b.paymentMethod || "cash"
     });
+    setServiceCategory(category || "");
     setEditId(b.id);
     setOpen(true);
   };
@@ -224,6 +240,31 @@ const Billing = () => {
     return doc;
   };
 
+  const buildBillingSummary = (b: BillingType) => {
+    const customer = customers.find(c => c.id === b.customerId);
+    const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
+    const finalAmt = b.finalAmount ?? amt;
+    const services = (b.services && b.services.length > 0) ? b.services : (b.service ? b.service.split(", ") : []);
+    const lineItems = services.map((serviceName) => {
+      const svc = salonServices.find(s => s.name === serviceName);
+      const price = svc ? `₹${svc.price.toLocaleString("en-IN")}` : "—";
+      return `• ${serviceName} (${price})`;
+    }).join("\n");
+    const discountValue = b.discount ?? 0;
+    const discountAmount = discountValue > 0 ? Math.round(amt * discountValue / 100) : 0;
+
+    return {
+      customerName: customer?.name || b.customerName || "Customer",
+      total: finalAmt,
+      subtotal: amt,
+      discountValue,
+      discountAmount,
+      payment: getPaymentLabel(b.paymentMethod),
+      lineItems,
+      date: formatDate(b.date),
+    };
+  };
+
   const sendBillPDFToWhatsApp = (b: BillingType) => {
     const customer = customers.find(c => c.id === b.customerId);
     if (!customer) { toast.error("Customer not found"); return; }
@@ -232,8 +273,11 @@ const Billing = () => {
     const doc = generatePDF(b);
     doc.save(`invoice-${customer.name.replace(/\s+/g, '-')}-${b.date}.pdf`);
 
-    const finalAmt = b.finalAmount ?? (typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount)));
-    const msg = `Hi ${customer.name}! 🧾\n\nYour invoice from Life Style Studio:\nTotal: ₹${finalAmt.toLocaleString("en-IN")}\nDate: ${formatDate(b.date)}\nPayment: ${getPaymentLabel(b.paymentMethod)}\n\nPlease find the PDF invoice attached. Thank you! 💫`;
+    const summary = buildBillingSummary(b);
+    const discountLine = summary.discountValue > 0
+      ? `Discount (${summary.discountValue}%): -₹${summary.discountAmount.toLocaleString("en-IN")}`
+      : "Discount: —";
+    const msg = `Hi ${summary.customerName}! 🧾\n\nYour bill from Life Style Studio:\n\nServices:\n${summary.lineItems || "• Service"}\n\nSubtotal: ₹${summary.subtotal.toLocaleString("en-IN")}\n${discountLine}\nTotal: ₹${summary.total.toLocaleString("en-IN")}\nPayment: ${summary.payment}\nDate: ${summary.date}\n\nPlease find the PDF invoice attached. Thank you! 💫`;
     window.open(`https://web.whatsapp.com/send?phone=${phone.startsWith("91") ? phone : "91" + phone}&text=${encodeURIComponent(msg)}`, "_blank");
     toast.success("PDF downloaded — attach it in WhatsApp chat");
   };
@@ -275,14 +319,37 @@ const Billing = () => {
                 </Select>
               </div>
               <div>
-                <label className="form-label">Services</label>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {salonServices.map(s => (
-                    <button type="button" key={s.id} onClick={() => toggleService(s.name)}
-                      className={`text-xs px-3 py-1.5 rounded-full font-body transition-all ${form.services.includes(s.name) ? 'gold-gradient text-accent-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                    >{s.name} (₹{s.price})</button>
-                  ))}
-                  {salonServices.length === 0 && <p className="text-xs text-muted-foreground font-body">Add services in Services page first</p>}
+                <label className="form-label">Service Category</label>
+                <Select value={serviceCategory} onValueChange={v => {
+                  setServiceCategory(v);
+                  setForm(prev => ({ ...prev, services: [], amount: "" }));
+                }}>
+                  <SelectTrigger className="h-11"><SelectValue placeholder="Select category..." /></SelectTrigger>
+                  <SelectContent>
+                    {serviceCategories.map(category => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="mt-3">
+                  <label className="form-label">Services</label>
+                  {serviceCategory ? (
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {servicesByCategory.map(s => (
+                        <button type="button" key={s.id} onClick={() => toggleService(s.name)}
+                          className={`text-xs px-3 py-1.5 rounded-full font-body transition-all ${form.services.includes(s.name) ? 'gold-gradient text-accent-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                        >{s.name} (₹{s.price})</button>
+                      ))}
+                      {servicesByCategory.length === 0 && (
+                        <p className="text-xs text-muted-foreground font-body">No services in this category</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground font-body">Select a category to view services</p>
+                  )}
+                  {salonServices.length === 0 && (
+                    <p className="text-xs text-muted-foreground font-body">Add services in Services page first</p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
