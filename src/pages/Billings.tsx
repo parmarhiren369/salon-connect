@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useStore } from "@/store/useStore";
-import { Search, Plus, DollarSign, Calendar, TrendingUp, X, Edit2, Trash2 } from "lucide-react";
+import { useStore, Billing as BillingType } from "@/store/useStore";
+import { Search, Plus, DollarSign, Calendar, TrendingUp, X, Edit2, Trash2, Send, FileText, CreditCard, Banknote, Smartphone, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,6 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatDate } from "@/lib/utils";
+import jsPDF from "jspdf";
+import logoImg from "@/assets/logo.png";
+
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Cash", icon: Banknote },
+  { value: "upi", label: "UPI", icon: Smartphone },
+  { value: "card", label: "Card", icon: CreditCard },
+  { value: "bank_transfer", label: "Bank Transfer", icon: Building2 },
+] as const;
+
+const getPaymentLabel = (method?: string) => {
+  const found = PAYMENT_METHODS.find(m => m.value === method);
+  return found?.label || "—";
+};
 
 const Billings = () => {
   const { billings, addBilling, updateBilling, deleteBilling, customers, salonServices } = useStore();
@@ -25,7 +39,8 @@ const Billings = () => {
     customerId: "",
     selectedServices: [] as { id: string; name: string; price: number }[],
     discount: 0,
-    date: new Date().toISOString().split("T")[0]
+    date: new Date().toISOString().split("T")[0],
+    paymentMethod: "cash" as 'cash' | 'upi' | 'card' | 'bank_transfer' | 'other'
   });
 
   const filtered = billings.filter(b => {
@@ -58,7 +73,7 @@ const Billings = () => {
   };
 
   const resetForm = () => {
-    setForm({ customerId: "", selectedServices: [], discount: 0, date: new Date().toISOString().split("T")[0] });
+    setForm({ customerId: "", selectedServices: [], discount: 0, date: new Date().toISOString().split("T")[0], paymentMethod: "cash" });
     setEditId(null);
   };
 
@@ -77,7 +92,8 @@ const Billings = () => {
       customerId: b.customerId,
       selectedServices: fallbackSelected,
       discount: b.discount ?? 0,
-      date: b.date
+      date: b.date,
+      paymentMethod: b.paymentMethod || "cash"
     });
     setEditId(b.id);
     setOpen(true);
@@ -91,12 +107,17 @@ const Billings = () => {
     }
     
     const serviceNames = form.selectedServices.map(s => s.name).join(", ");
+    const customer = customers.find(c => c.id === form.customerId);
     const payload = {
       customerId: form.customerId,
+      customerName: customer?.name || "Unknown",
       service: serviceNames,
-      amount: totalAmount.toFixed(2),
+      services: form.selectedServices.map(s => s.name),
+      amount: totalAmount,
       discount: form.discount,
-      date: form.date
+      finalAmount: totalAmount,
+      date: form.date,
+      paymentMethod: form.paymentMethod,
     };
     if (editId) {
       updateBilling(editId, payload);
@@ -114,6 +135,129 @@ const Billings = () => {
     return customer?.name || "Unknown";
   };
 
+  const generatePDF = (b: BillingType): jsPDF => {
+    const doc = new jsPDF({ unit: "mm", format: "a5" });
+    const w = doc.internal.pageSize.getWidth();
+    const customer = customers.find(c => c.id === b.customerId);
+    const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
+    const finalAmt = b.finalAmount ?? amt;
+
+    try { doc.addImage(logoImg, "PNG", 10, 8, 18, 18); } catch { /* skip */ }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Life Style Studio", 32, 16);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120, 120, 120);
+    doc.text("Beauty & Wellness", 32, 22);
+
+    doc.setDrawColor(191, 155, 48);
+    doc.setLineWidth(0.8);
+    doc.line(10, 30, w - 10, 30);
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(40, 40, 40);
+    doc.text("INVOICE", w - 10, 16, { align: "right" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Date: ${formatDate(b.date)}`, w - 10, 22, { align: "right" });
+
+    let y = 38;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(60, 60, 60);
+    doc.text("Bill To:", 10, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(b.customerName || customer?.name || "Customer", 32, y);
+    y += 5;
+    if (customer?.mobile) {
+      doc.text(`Phone: ${customer.mobile}`, 32, y);
+      y += 5;
+    }
+    doc.text(`Payment: ${getPaymentLabel(b.paymentMethod)}`, 32, y);
+    y += 8;
+
+    doc.setFillColor(245, 240, 230);
+    doc.rect(10, y, w - 20, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    doc.text("Service", 12, y + 5);
+    doc.text("Amount", w - 12, y + 5, { align: "right" });
+    y += 10;
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(50, 50, 50);
+    const services = (b.services && b.services.length > 0) ? b.services : (b.service ? b.service.split(", ") : ["Service"]);
+    services.forEach(s => {
+      const svc = salonServices.find(sv => sv.name === s);
+      doc.text(s, 12, y);
+      doc.text(svc ? `₹${svc.price.toLocaleString("en-IN")}` : "—", w - 12, y, { align: "right" });
+      y += 6;
+    });
+
+    y += 2;
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.line(10, y, w - 10, y);
+    y += 6;
+
+    doc.setFontSize(9);
+    doc.text("Subtotal", 12, y);
+    doc.text(`₹${amt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+    y += 6;
+
+    if ((b.discount ?? 0) > 0) {
+      doc.setTextColor(191, 155, 48);
+      doc.text(`Discount (${b.discount}%)`, 12, y);
+      doc.text(`-₹${Math.round(amt * (b.discount ?? 0) / 100).toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+      y += 6;
+    }
+
+    doc.setDrawColor(191, 155, 48);
+    doc.setLineWidth(0.8);
+    doc.line(10, y, w - 10, y);
+    y += 7;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Total", 12, y);
+    doc.text(`₹${finalAmt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+
+    y += 15;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(150, 150, 150);
+    doc.text("Thank you for choosing Life Style Studio!", w / 2, y, { align: "center" });
+
+    return doc;
+  };
+
+  const downloadPDF = (b: BillingType) => {
+    const customer = customers.find(c => c.id === b.customerId);
+    const doc = generatePDF(b);
+    doc.save(`invoice-${(customer?.name || 'bill').replace(/\s+/g, '-')}-${b.date}.pdf`);
+    toast.success("PDF downloaded");
+  };
+
+  const sendBillPDFToWhatsApp = (b: BillingType) => {
+    const customer = customers.find(c => c.id === b.customerId);
+    if (!customer) { toast.error("Customer not found"); return; }
+    const phone = customer.mobile.replace(/[^0-9]/g, "");
+
+    const doc = generatePDF(b);
+    doc.save(`invoice-${customer.name.replace(/\s+/g, '-')}-${b.date}.pdf`);
+
+    const finalAmt = b.finalAmount ?? (typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount)));
+    const msg = `Hi ${customer.name}! 🧾\n\nYour invoice from Life Style Studio:\nTotal: ₹${finalAmt.toLocaleString("en-IN")}\nDate: ${formatDate(b.date)}\nPayment: ${getPaymentLabel(b.paymentMethod)}\n\nPlease find the PDF invoice attached. Thank you! 💫`;
+    window.open(`https://web.whatsapp.com/send?phone=${phone.startsWith("91") ? phone : "91" + phone}&text=${encodeURIComponent(msg)}`, "_blank");
+    toast.success("PDF downloaded — attach it in WhatsApp chat");
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between page-header">
@@ -128,7 +272,7 @@ const Billings = () => {
               <Plus className="h-4 w-4 mr-2" /> Add Billing
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display text-3xl">{editId ? "Edit Billing" : "New Billing"}</DialogTitle>
             </DialogHeader>
@@ -141,7 +285,7 @@ const Billings = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {customers.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{c.name} — {c.mobile}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -221,18 +365,35 @@ const Billings = () => {
                   </div>
                 )}
               </div>
-              <div>
-                <label className="form-label">Discount (%)</label>
-                <Input
-                  type="number"
-                  value={form.discount}
-                  onChange={e => setForm({ ...form, discount: parseFloat(e.target.value) || 0 })}
-                  placeholder="0"
-                  className="h-11"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Discount (%)</label>
+                  <Input
+                    type="number"
+                    value={form.discount}
+                    onChange={e => setForm({ ...form, discount: parseFloat(e.target.value) || 0 })}
+                    placeholder="0"
+                    className="h-11"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Payment Method</label>
+                  <Select value={form.paymentMethod} onValueChange={(v: 'cash' | 'upi' | 'card' | 'bank_transfer' | 'other') => setForm({ ...form, paymentMethod: v })}>
+                    <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>
+                          <span className="flex items-center gap-2">
+                            <m.icon className="h-3.5 w-3.5" /> {m.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
                 <label className="form-label">Date *</label>
@@ -342,6 +503,7 @@ const Billings = () => {
                 <th className="text-left p-4 font-body text-sm font-semibold">Date</th>
                 <th className="text-left p-4 font-body text-sm font-semibold">Client</th>
                 <th className="text-left p-4 font-body text-sm font-semibold">Service</th>
+                <th className="text-left p-4 font-body text-sm font-semibold">Payment</th>
                 <th className="text-right p-4 font-body text-sm font-semibold">Amount</th>
                 <th className="text-right p-4 font-body text-sm font-semibold">Actions</th>
               </tr>
@@ -349,9 +511,9 @@ const Billings = () => {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-12 text-center">
+                  <td colSpan={6} className="p-12 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="h-16 w-16 rounded-2xl gold-gradient/10 flex items-center justify-center">
+                      <div className="h-16 w-16 rounded-2xl flex items-center justify-center bg-accent/10">
                         <DollarSign className="h-8 w-8 text-accent" />
                       </div>
                       <p className="font-display text-xl text-foreground">No billings found</p>
@@ -366,23 +528,38 @@ const Billings = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.02 }}
-                    className="border-b border-border hover:bg-muted/30 transition-colors"
+                    className="border-b border-border hover:bg-muted/30 transition-colors group"
                   >
                     <td className="p-4 font-body text-sm text-muted-foreground">
                       {formatDate(b.date)}
                     </td>
-                    <td className="p-4 font-body text-sm font-medium">{getCustomerName(b.customerId)}</td>
+                    <td className="p-4 font-body text-sm font-medium">{b.customerName || getCustomerName(b.customerId)}</td>
                     <td className="p-4 font-body text-sm">{b.service}</td>
+                    <td className="p-4">
+                      <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground font-body font-medium">
+                        {getPaymentLabel(b.paymentMethod)}
+                      </span>
+                    </td>
                     <td className="p-4 font-body text-sm font-semibold text-right">₹{parseFloat(String(b.amount)).toFixed(2)}</td>
                     <td className="p-4">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => downloadPDF(b)}
+                          className="p-2 rounded-lg hover:bg-accent/10 transition-all text-muted-foreground hover:text-accent opacity-0 group-hover:opacity-100"
+                          title="Download PDF">
+                          <FileText className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => sendBillPDFToWhatsApp(b)}
+                          className="p-2 rounded-lg hover:bg-accent/10 transition-all text-muted-foreground hover:text-accent opacity-0 group-hover:opacity-100"
+                          title="Send via WhatsApp">
+                          <Send className="h-4 w-4" />
+                        </button>
                         <button onClick={() => startEdit(b.id)}
-                          className="p-2 rounded-lg hover:bg-muted transition-all text-muted-foreground hover:text-foreground"
+                          className="p-2 rounded-lg hover:bg-muted transition-all text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
                           title="Edit billing">
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button onClick={() => { deleteBilling(b.id); toast.success("Billing removed"); }}
-                          className="p-2 rounded-lg hover:bg-destructive/10 transition-all text-muted-foreground hover:text-destructive"
+                          className="p-2 rounded-lg hover:bg-destructive/10 transition-all text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
                           title="Delete billing">
                           <Trash2 className="h-4 w-4" />
                         </button>
