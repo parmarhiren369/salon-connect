@@ -52,7 +52,7 @@ const Memberships = () => {
       amount: parseFloat(form.amount),
       totalBenefits: parseInt(form.totalBenefits) || 0,
       usedBenefits: Math.max(0, parseInt(form.usedBenefits) || 0),
-      status: isExpired ? 'expired' : 'active',
+      status: (isExpired ? 'expired' : 'active') as 'active' | 'expired',
     };
     if (editId) {
       updateMembership(editId, data);

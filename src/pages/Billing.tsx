@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useStore, Billing as BillingType } from "@/store/useStore";
-import { Plus, Trash2, Receipt, IndianRupee, TrendingUp, Calendar as CalendarIcon, Search, Edit2, Send, Percent } from "lucide-react";
+import { Plus, Trash2, Receipt, IndianRupee, TrendingUp, Calendar as CalendarIcon, Search, Edit2, Send, Percent, FileText, CreditCard, Banknote, Smartphone, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -8,6 +8,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
+import jsPDF from "jspdf";
+import logoImg from "@/assets/logo.png";
+
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Cash", icon: Banknote },
+  { value: "upi", label: "UPI", icon: Smartphone },
+  { value: "card", label: "Card", icon: CreditCard },
+  { value: "bank_transfer", label: "Bank Transfer", icon: Building2 },
+] as const;
+
+const getPaymentLabel = (method?: string) => {
+  const found = PAYMENT_METHODS.find(m => m.value === method);
+  return found?.label || "—";
+};
 
 const Billing = () => {
   const { billings, addBilling, deleteBilling, updateBilling, customers, salonServices } = useStore();
@@ -16,7 +30,8 @@ const Billing = () => {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({
     customerId: "", services: [] as string[], amount: "", discount: "0",
-    date: new Date().toISOString().split("T")[0], notes: ""
+    date: new Date().toISOString().split("T")[0], notes: "",
+    paymentMethod: "cash" as 'cash' | 'upi' | 'card' | 'bank_transfer' | 'other'
   });
 
   const today = new Date();
@@ -50,7 +65,7 @@ const Billing = () => {
   };
 
   const resetForm = () => {
-    setForm({ customerId: "", services: [], amount: "", discount: "0", date: new Date().toISOString().split("T")[0], notes: "" });
+    setForm({ customerId: "", services: [], amount: "", discount: "0", date: new Date().toISOString().split("T")[0], notes: "", paymentMethod: "cash" });
     setEditId(null);
   };
 
@@ -61,7 +76,8 @@ const Billing = () => {
       amount: b.amount.toString(),
       discount: (b.discount ?? 0).toString(),
       date: b.date,
-      notes: b.notes || ""
+      notes: b.notes || "",
+      paymentMethod: b.paymentMethod || "cash"
     });
     setEditId(b.id);
     setOpen(true);
@@ -82,6 +98,7 @@ const Billing = () => {
       amount, discount, finalAmount,
       date: form.date,
       notes: form.notes,
+      paymentMethod: form.paymentMethod,
     };
     if (editId) {
       updateBilling(editId, data);
@@ -94,18 +111,138 @@ const Billing = () => {
     setOpen(false);
   };
 
-  const sendBillToWhatsApp = (b: BillingType) => {
+  const generatePDF = (b: BillingType): jsPDF => {
+    const doc = new jsPDF({ unit: "mm", format: "a5" });
+    const w = doc.internal.pageSize.getWidth();
+    const customer = customers.find(c => c.id === b.customerId);
+    const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
+    const finalAmt = b.finalAmount ?? amt;
+
+    // Logo
+    try { doc.addImage(logoImg, "PNG", 10, 8, 18, 18); } catch { /* skip logo if fails */ }
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Life Style Studio", 32, 16);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120, 120, 120);
+    doc.text("Beauty & Wellness", 32, 22);
+
+    // Gold line
+    doc.setDrawColor(191, 155, 48);
+    doc.setLineWidth(0.8);
+    doc.line(10, 30, w - 10, 30);
+
+    // Invoice title
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(40, 40, 40);
+    doc.text("INVOICE", w - 10, 16, { align: "right" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Date: ${formatDate(b.date)}`, w - 10, 22, { align: "right" });
+
+    // Customer info
+    let y = 38;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(60, 60, 60);
+    doc.text("Bill To:", 10, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(b.customerName || customer?.name || "Customer", 32, y);
+    y += 5;
+    if (customer?.mobile) {
+      doc.text(`Phone: ${customer.mobile}`, 32, y);
+      y += 5;
+    }
+    doc.text(`Payment: ${getPaymentLabel(b.paymentMethod)}`, 32, y);
+    y += 8;
+
+    // Table header
+    doc.setFillColor(245, 240, 230);
+    doc.rect(10, y, w - 20, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    doc.text("Service", 12, y + 5);
+    doc.text("Amount", w - 12, y + 5, { align: "right" });
+    y += 10;
+
+    // Services
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(50, 50, 50);
+    const services = (b.services && b.services.length > 0) ? b.services : (b.service ? b.service.split(", ") : ["Service"]);
+    services.forEach(s => {
+      const svc = salonServices.find(sv => sv.name === s);
+      doc.text(s, 12, y);
+      doc.text(svc ? `₹${svc.price.toLocaleString("en-IN")}` : "—", w - 12, y, { align: "right" });
+      y += 6;
+    });
+
+    // Separator
+    y += 2;
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.line(10, y, w - 10, y);
+    y += 6;
+
+    // Subtotal
+    doc.setFontSize(9);
+    doc.text("Subtotal", 12, y);
+    doc.text(`₹${amt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+    y += 6;
+
+    if ((b.discount ?? 0) > 0) {
+      doc.setTextColor(191, 155, 48);
+      doc.text(`Discount (${b.discount}%)`, 12, y);
+      doc.text(`-₹${Math.round(amt * (b.discount ?? 0) / 100).toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+      y += 6;
+    }
+
+    // Total
+    doc.setDrawColor(191, 155, 48);
+    doc.setLineWidth(0.8);
+    doc.line(10, y, w - 10, y);
+    y += 7;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Total", 12, y);
+    doc.text(`₹${finalAmt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+
+    // Footer
+    y += 15;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(150, 150, 150);
+    doc.text("Thank you for choosing Life Style Studio! ✨", w / 2, y, { align: "center" });
+
+    return doc;
+  };
+
+  const sendBillPDFToWhatsApp = (b: BillingType) => {
     const customer = customers.find(c => c.id === b.customerId);
     if (!customer) { toast.error("Customer not found"); return; }
     const phone = customer.mobile.replace(/[^0-9]/g, "");
-    const servicesText = (b.services && b.services.length > 0) ? `\nServices: ${b.services.join(", ")}` : (b.service ? `\nServices: ${b.service}` : "");
-    const discountText = (b.discount ?? 0) > 0 ? `\nDiscount: ${b.discount}%` : "";
-    const customerName = b.customerName || customer?.name || "Customer";
-    const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
-    const finalAmt = b.finalAmount ?? amt;
-    const msg = `Hi ${customerName}! 🧾\n\nHere's your bill from Life Style Studio:\n${servicesText}\nAmount: ₹${amt.toLocaleString("en-IN")}${discountText}\n*Total: ₹${finalAmt.toLocaleString("en-IN")}*\nDate: ${formatDate(b.date)}\n\nThank you for choosing us! 💫`;
-    window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, "whatsapp_bulk");
-    toast.success("Opening WhatsApp...");
+
+    const doc = generatePDF(b);
+    doc.save(`invoice-${customer.name.replace(/\s+/g, '-')}-${b.date}.pdf`);
+
+    const finalAmt = b.finalAmount ?? (typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount)));
+    const msg = `Hi ${customer.name}! 🧾\n\nYour invoice from Life Style Studio:\nTotal: ₹${finalAmt.toLocaleString("en-IN")}\nDate: ${formatDate(b.date)}\nPayment: ${getPaymentLabel(b.paymentMethod)}\n\nPlease find the PDF invoice attached. Thank you! 💫`;
+    window.open(`https://web.whatsapp.com/send?phone=${phone.startsWith("91") ? phone : "91" + phone}&text=${encodeURIComponent(msg)}`, "_blank");
+    toast.success("PDF downloaded — attach it in WhatsApp chat");
+  };
+
+  const downloadPDF = (b: BillingType) => {
+    const customer = customers.find(c => c.id === b.customerId);
+    const doc = generatePDF(b);
+    doc.save(`invoice-${(customer?.name || 'bill').replace(/\s+/g, '-')}-${b.date}.pdf`);
+    toast.success("PDF downloaded");
   };
 
   return (
@@ -148,9 +285,26 @@ const Billing = () => {
                   {salonServices.length === 0 && <p className="text-xs text-muted-foreground font-body">Add services in Services page first</p>}
                 </div>
               </div>
-              <div>
-                <label className="form-label">Amount (₹) *</label>
-                <Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="1500" className="h-11" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Amount (₹) *</label>
+                  <Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="1500" className="h-11" />
+                </div>
+                <div>
+                  <label className="form-label">Payment Method</label>
+                  <Select value={form.paymentMethod} onValueChange={(v: 'cash' | 'upi' | 'card' | 'bank_transfer' | 'other') => setForm({ ...form, paymentMethod: v })}>
+                    <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>
+                          <span className="flex items-center gap-2">
+                            <m.icon className="h-3.5 w-3.5" /> {m.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
                 <label className="form-label flex items-center gap-1.5">
@@ -180,13 +334,15 @@ const Billing = () => {
                   </div>
                 </div>
               )}
-              <div>
-                <label className="form-label">Date</label>
-                <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="h-11" />
-              </div>
-              <div>
-                <label className="form-label">Notes</label>
-                <Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes" className="h-11" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Date</label>
+                  <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="h-11" />
+                </div>
+                <div>
+                  <label className="form-label">Notes</label>
+                  <Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Optional" className="h-11" />
+                </div>
               </div>
               <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
                 {editId ? "Update Bill" : "Add Bill"}
@@ -255,9 +411,16 @@ const Billing = () => {
                     </div>
                     <div>
                       <p className="font-body font-semibold text-foreground text-sm">{b.customerName || customers.find(c=>c.id===b.customerId)?.name || 'Unknown'}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <CalendarIcon className="h-3 w-3 text-accent" />
-                        <span className="text-xs text-muted-foreground font-body">{formatDate(b.date)}</span>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <CalendarIcon className="h-3 w-3 text-accent" />
+                          <span className="text-xs text-muted-foreground font-body">{formatDate(b.date)}</span>
+                        </span>
+                        {b.paymentMethod && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-body font-medium">
+                            {getPaymentLabel(b.paymentMethod)}
+                          </span>
+                        )}
                         {(b.discount ?? 0) > 0 && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-body font-medium">{b.discount}% OFF</span>
                         )}
@@ -285,9 +448,14 @@ const Billing = () => {
                         </div>
                       </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => sendBillToWhatsApp(b)}
-                        className="p-2 rounded-lg hover:bg-[hsl(142,50%,90%)] transition-all text-muted-foreground hover:text-[hsl(142,70%,35%)]"
-                        title="Send to WhatsApp">
+                      <button onClick={() => downloadPDF(b)}
+                        className="p-2 rounded-lg hover:bg-accent/10 transition-all text-muted-foreground hover:text-accent"
+                        title="Download PDF">
+                        <FileText className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => sendBillPDFToWhatsApp(b)}
+                        className="p-2 rounded-lg hover:bg-accent/10 transition-all text-muted-foreground hover:text-accent"
+                        title="Send PDF via WhatsApp">
                         <Send className="h-4 w-4" />
                       </button>
                       <button onClick={() => startEdit(b)}

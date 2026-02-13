@@ -99,7 +99,7 @@ const Customers = () => {
       amount: parseFloat(membershipForm.amount),
       totalBenefits: parseInt(membershipForm.totalBenefits) || 0,
       usedBenefits: 0,
-      status: isExpired ? "expired" : "active",
+      status: (isExpired ? "expired" : "active") as 'active' | 'expired',
     };
 
     if (existing) {
@@ -148,13 +148,15 @@ const Customers = () => {
                 <label className="form-label">Visit Date</label>
                 <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="h-11" />
               </div>
-              <div>
-                <label className="form-label">Birthday (Optional)</label>
-                <Input type="date" value={form.birthday} onChange={e => setForm({ ...form, birthday: e.target.value })} className="h-11" />
-              </div>
-              <div>
-                <label className="form-label">Anniversary (Optional)</label>
-                <Input type="date" value={form.anniversary} onChange={e => setForm({ ...form, anniversary: e.target.value })} className="h-11" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Birthday</label>
+                  <Input type="date" value={form.birthday} onChange={e => setForm({ ...form, birthday: e.target.value })} className="h-11" />
+                </div>
+                <div>
+                  <label className="form-label">Anniversary</label>
+                  <Input type="date" value={form.anniversary} onChange={e => setForm({ ...form, anniversary: e.target.value })} className="h-11" />
+                </div>
               </div>
               <div>
                 <label className="form-label">Reference (Optional)</label>
