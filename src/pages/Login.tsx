@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Loader2, Lock, Mail, User } from "lucide-react";
+import { Loader2, Lock, Mail, Monitor, Smartphone, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
@@ -14,6 +14,16 @@ const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "" });
+  const [deviceMode, setDeviceMode] = useState<"desktop" | "mobile">(() => {
+    const saved = localStorage.getItem("ls-device-mode");
+    return saved === "mobile" || saved === "desktop" ? saved : "desktop";
+  });
+
+  const selectDeviceMode = (mode: "desktop" | "mobile") => {
+    setDeviceMode(mode);
+    localStorage.setItem("ls-device-mode", mode);
+    toast.success(mode === "mobile" ? "Mobile mode enabled" : "Desktop mode enabled");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +77,37 @@ const Login = () => {
             <h1 className="page-title text-3xl mb-2">Life Style Studio</h1>
             <p className="page-subtitle">
               {isLogin ? "Welcome back! Sign in to continue" : "Create your account"}
+            </p>
+          </div>
+
+          <div className="mb-6">
+            <p className="form-label">Choose your device</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => selectDeviceMode("mobile")}
+                className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-xs font-body tracking-wider transition-all ${
+                  deviceMode === "mobile"
+                    ? "gold-gradient text-accent-foreground shadow-lg shadow-accent/20"
+                    : "bg-card text-muted-foreground hover:bg-muted/60"
+                }`}
+              >
+                <Smartphone className="h-4 w-4" /> Mobile
+              </button>
+              <button
+                type="button"
+                onClick={() => selectDeviceMode("desktop")}
+                className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-xs font-body tracking-wider transition-all ${
+                  deviceMode === "desktop"
+                    ? "gold-gradient text-accent-foreground shadow-lg shadow-accent/20"
+                    : "bg-card text-muted-foreground hover:bg-muted/60"
+                }`}
+              >
+                <Monitor className="h-4 w-4" /> Desktop
+              </button>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground font-body">
+              Mobile mode turns on a touch-first layout with a bottom navigation bar.
             </p>
           </div>
 
