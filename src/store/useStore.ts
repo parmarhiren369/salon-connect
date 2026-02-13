@@ -52,6 +52,7 @@ export interface Billing {
   finalAmount?: number;
   date: string;
   notes?: string;
+  paymentMethod?: 'cash' | 'upi' | 'card' | 'bank_transfer' | 'other';
 }
 
 export interface SalonService {
