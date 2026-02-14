@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import { useStore, MessageTemplate } from "@/store/useStore";
 import { Plus, Trash2, Edit2, ImagePlus, X, Sparkles } from "lucide-react";
-import { useFirebase } from "@/lib/firebase-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { userProfile } from "@/lib/user-profile";
 
 const categoryConfig: Record<string, { bg: string; text: string; label: string }> = {
   sale: { bg: "bg-accent/15", text: "text-accent", label: "Sale" },
@@ -19,11 +19,9 @@ const categoryConfig: Record<string, { bg: string; text: string; label: string }
 
 const Templates = () => {
   const { templates, addTemplate, deleteTemplate, updateTemplate } = useStore();
-  const { auth } = useFirebase();
   
-  // Extract sender name from email (part before @) and capitalize first letter
-  const extractedName = auth.currentUser?.email?.split('@')[0] || 'Salon';
-  const senderName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
+  // Get username from user profile
+  const senderName = userProfile.getUsername();
   
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

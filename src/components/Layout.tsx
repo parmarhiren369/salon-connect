@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, Sparkles } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { toast } from "sonner";
+import { userProfile } from "@/lib/user-profile";
 import Sidebar from "./Sidebar";
 import MobileNav from "./MobileNav";
 import { useFirebase } from "@/lib/firebase-context";
@@ -24,6 +25,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      userProfile.clear(); // Clear stored username
       toast.success("Logged out successfully");
       navigate("/login");
     } catch (error) {

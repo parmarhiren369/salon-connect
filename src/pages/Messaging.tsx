@@ -8,15 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { useFirebase } from "@/lib/firebase-context";
+import { userProfile } from "@/lib/user-profile";
 
 const Messaging = () => {
   const { customers, templates } = useStore();
-  const { auth } = useFirebase();
   
-  // Extract sender name from email (part before @) and capitalize first letter
-  const extractedName = auth.currentUser?.email?.split('@')[0] || 'Salon';
-  const senderName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
+  // Get username from user profile
+  const senderName = userProfile.getUsername();
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [customMessage, setCustomMessage] = useState("");
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());

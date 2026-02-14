@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useFirebase } from "@/lib/firebase-context";
+import { userProfile } from "@/lib/user-profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -9,15 +11,26 @@ import { Loader2, Lock, Mail, Monitor, Smartphone, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
-  const { auth } = useFirebase();
+  const { auth, db } = useFirebase();
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", name: "" });
+  const [form, setForm] = useState({ email: "", password: "", username: "" });
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  
+  // Only allow this specific email to access the system
+  const AUTHORIZED_EMAIL = "lifestylebeautysalon7777@gmail.com";
   const [deviceMode, setDeviceMode] = useState<"desktop" | "mobile">(() => {
     const saved = localStorage.getItem("ls-device-mode");
     return saved === "mobile" || saved === "desktop" ? saved : "desktop";
   });
+
+  useEffect(() => {
+    // Check if username is already set
+    const existingUsername = userProfile.getUsername();
+    if (existingUsername && existingUsername !== 'Salon') {
+      setForm(prev => ({ ...prev, username: existingUsername }));
+    }
+  }, []);
 
   const selectDeviceMode = (mode: "desktop" | "mobile") => {
     setDeviceMode(mode);
@@ -29,32 +42,51 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     
+    // Validate that only authorized email can login
+    if (form.email.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase()) {
+      toast.error("Access denied. Unauthorized email address.");
+      setLoading(false);
+      return;
+    }
+    
     try {
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, form.email, form.password);
-        toast.success("Welcome back!");
-        navigate("/");
-      } else {
-        if (!form.name) {
-          toast.error("Name is required");
-          setLoading(false);
-          return;
-        }
-        await createUserWithEmailAndPassword(auth, form.email, form.password);
-        toast.success("Account created successfully!");
-        navigate("/");
+      await signInWithEmailAndPassword(auth, form.email, form.password);
+      
+      // Store email for username extraction
+      localStorage.setItem('ls-user-email', form.email);
+      
+      // Check if username is set, if not prompt for it
+      const username = form.username || userProfile.getUsername();
+      if (!form.username || form.username === 'Salon') {
+        setShowUsernamePrompt(true);
+        setLoading(false);
+        return;
       }
+      
+      // Save username
+      userProfile.setUsername(username);
+      
+      toast.success("Welcome to Life Style Studio!");
+      navigate("/");
     } catch (error: any) {
       const errorMessage = error.code === "auth/invalid-credential" 
         ? "Invalid email or password" 
-        : error.code === "auth/email-already-in-use"
-        ? "Email already in use"
-        : error.code === "auth/weak-password"
-        ? "Password should be at least 6 characters"
+        : error.code === "auth/user-not-found"
+        ? "Account not found. Please contact administrator."
         : "Authentication failed. Please try again.";
       toast.error(errorMessage);
       setLoading(false);
     }
+  };
+
+  const saveUsernameAndProceed = () => {
+    if (!form.username || form.username.trim() === '') {
+      toast.error("Please enter your name");
+      return;
+    }
+    userProfile.setUsername(form.username);
+    toast.success("Welcome to Life Style Studio!");
+    navigate("/");
   };
 
   return (
@@ -76,7 +108,7 @@ const Login = () => {
             </motion.div>
             <h1 className="page-title text-3xl mb-2">Life Style Studio</h1>
             <p className="page-subtitle">
-              {isLogin ? "Welcome back! Sign in to continue" : "Create your account"}
+              Sign in to access your salon management system
             </p>
           </div>
 
@@ -112,21 +144,22 @@ const Login = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {!isLogin && (
-              <div>
-                <label className="form-label">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Your name"
-                    className="pl-10 h-12"
-                    required={!isLogin}
-                  />
-                </div>
+            <div>
+              <label className="form-label">Your Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  placeholder="Your name (e.g., Hiren)"
+                  className="pl-10 h-12"
+                  required
+                />
               </div>
-            )}
+              <p className="mt-1 text-[11px] text-muted-foreground font-body">
+                This name will appear in SMS messages sent to clients
+              </p>
+            </div>
 
             <div>
               <label className="form-label">Email Address</label>
@@ -167,32 +200,17 @@ const Login = () => {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isLogin ? "Signing in..." : "Creating account..."}
+                  Signing in...
                 </>
               ) : (
-                <>{isLogin ? "Sign In" : "Create Account"}</>
+                <>Sign In</>
               )}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setForm({ email: "", password: "", name: "" });
-              }}
-              className="text-sm text-muted-foreground hover:text-accent transition-colors font-body"
-            >
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
-              <span className="text-accent font-semibold">
-                {isLogin ? "Sign Up" : "Sign In"}
-              </span>
-            </button>
-          </div>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6 font-body">
-          Enterprise-grade security powered by Firebase
+          Secure access • Enterprise-grade security powered by Firebase
         </p>
       </motion.div>
     </div>
