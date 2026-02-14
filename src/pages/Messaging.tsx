@@ -14,8 +14,9 @@ const Messaging = () => {
   const { customers, templates } = useStore();
   const { auth } = useFirebase();
   
-  // Extract sender name from email (part before @)
-  const senderName = auth.currentUser?.email?.split('@')[0] || 'Salon';
+  // Extract sender name from email (part before @) and capitalize first letter
+  const extractedName = auth.currentUser?.email?.split('@')[0] || 'Salon';
+  const senderName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [customMessage, setCustomMessage] = useState("");
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());

@@ -21,8 +21,9 @@ const Templates = () => {
   const { templates, addTemplate, deleteTemplate, updateTemplate } = useStore();
   const { auth } = useFirebase();
   
-  // Extract sender name from email (part before @)
-  const senderName = auth.currentUser?.email?.split('@')[0] || 'Salon';
+  // Extract sender name from email (part before @) and capitalize first letter
+  const extractedName = auth.currentUser?.email?.split('@')[0] || 'Salon';
+  const senderName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
   
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
