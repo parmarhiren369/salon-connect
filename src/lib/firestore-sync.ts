@@ -6,21 +6,16 @@ import {
   getDocs, 
   deleteDoc, 
   updateDoc,
-  onSnapshot,
-  query,
-  where
+  onSnapshot
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 
-const USER_ID = 'lifestylebeautysalon7777@gmail.com'; // Single user system
-
-// Generic Firestore operations
+// Generic Firestore operations for single-user system
 export const firestoreSync = {
   // Get all documents from a collection
   async getAll<T>(db: Firestore, collectionName: string): Promise<T[]> {
     try {
-      const q = query(collection(db, collectionName), where('userId', '==', USER_ID));
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(collection(db, collectionName));
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
     } catch (error) {
       console.error(`Error fetching ${collectionName}:`, error);
@@ -34,7 +29,6 @@ export const firestoreSync = {
       const id = crypto.randomUUID();
       await setDoc(doc(db, collectionName, id), {
         ...data,
-        userId: USER_ID,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -74,9 +68,7 @@ export const firestoreSync = {
     collectionName: string, 
     callback: (data: T[]) => void
   ): () => void {
-    const q = query(collection(db, collectionName), where('userId', '==', USER_ID));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
       callback(data);
     }, (error) => {

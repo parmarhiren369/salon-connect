@@ -14,8 +14,10 @@ export function FirestoreSync({ children }: { children: ReactNode }) {
     // Set db in store
     store.setDb(db);
 
-    // Initialize defaults (first time setup)
-    firestoreSync.initializeDefaults(db);
+    // Initialize defaults (first time setup) - wrap in try-catch
+    firestoreSync.initializeDefaults(db).catch(err => {
+      console.error('Failed to initialize defaults:', err);
+    });
 
     const unsubscribers: (() => void)[] = [];
 
@@ -60,7 +62,7 @@ export function FirestoreSync({ children }: { children: ReactNode }) {
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [db, store]);
+  }, [db]); // Only db as dependency, store is a singleton
 
   return <>{children}</>;
 }
