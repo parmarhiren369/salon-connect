@@ -87,6 +87,7 @@ export const firestoreSync = {
       if (templates.length === 0) {
         // Add default templates
         const defaultTemplates = [
+          { name: 'Welcome Message', content: 'Hi {name}! 👋 Thank you for choosing Life Style Studio! We look forward to serving you. Book your appointment today! - {sender}', category: 'general' },
           { name: 'Grand Sale', content: 'Hi {name}! 🎉 Grand Sale at Life Style Studio! Get up to 50% OFF on all services. Book now! Call us to reserve your slot. - {sender}', category: 'sale' },
           { name: 'Festival Offer', content: 'Dear {name}, ✨ Celebrate this festive season with Life Style Studio! Special packages starting from ₹999. Limited slots available! - {sender}', category: 'festival' },
           { name: 'Loyalty Discount', content: 'Hi {name}! 💖 As our valued customer, enjoy an exclusive 20% discount on your next visit to Life Style Studio. Valid this month only! - {sender}', category: 'discount' },
