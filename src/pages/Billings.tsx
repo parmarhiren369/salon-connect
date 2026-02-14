@@ -523,18 +523,20 @@ const Billings = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="form-label text-xs">Date Range</label>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-row gap-2">
               <Input
                 type="date"
                 value={dateRange.start}
                 onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
                 className="h-10 text-sm"
+                placeholder="Start Date"
               />
               <Input
                 type="date"
                 value={dateRange.end}
                 onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
                 className="h-10 text-sm"
+                placeholder="End Date"
               />
             </div>
           </div>
