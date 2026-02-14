@@ -8,9 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useFirebase } from "@/lib/firebase-context";
 
 const Messaging = () => {
   const { customers, templates } = useStore();
+  const { auth } = useFirebase();
+  
+  // Extract sender name from email (part before @)
+  const senderName = auth.currentUser?.email?.split('@')[0] || 'Salon';
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [customMessage, setCustomMessage] = useState("");
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
@@ -60,7 +65,10 @@ const Messaging = () => {
       return phone;
     });
 
-    const personalizedMsg = message.replace(/\{name\}/gi, "");
+    // Replace {sender} with sender name and {name} with empty (for group SMS)
+    const personalizedMsg = message
+      .replace(/\{sender\}/gi, senderName)
+      .replace(/\{name\}/gi, "");
     const smsUrl = `sms:${phones.join(",")}?body=${encodeURIComponent(personalizedMsg)}`;
     window.open(smsUrl, "_blank");
 
@@ -68,7 +76,9 @@ const Messaging = () => {
     setSelectedCustomers(new Set());
   };
 
-  const previewMessage = (name: string) => message.replace(/\{name\}/gi, name);
+  const previewMessage = (name: string) => message
+    .replace(/\{name\}/gi, name)
+    .replace(/\{sender\}/gi, senderName);
 
   return (
     <div>
@@ -116,11 +126,13 @@ const Messaging = () => {
                   <Textarea
                     value={customMessage}
                     onChange={e => setCustomMessage(e.target.value)}
-                    placeholder="Hi {name}! Type your message..."
+                    placeholder={`Hi {name}! Your message here... - {sender}`}
                     rows={5}
                     className="text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground mt-1 tracking-wider font-body">Use {"{name}"} — each client gets their own name automatically</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 tracking-wider font-body">
+                    Use {"{name}"} for client name • Use {"{sender}"} for your name ({senderName})
+                  </p>
                 </div>
               )}
 

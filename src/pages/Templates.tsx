@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useStore, MessageTemplate } from "@/store/useStore";
 import { Plus, Trash2, Edit2, ImagePlus, X, Sparkles } from "lucide-react";
+import { useFirebase } from "@/lib/firebase-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +19,11 @@ const categoryConfig: Record<string, { bg: string; text: string; label: string }
 
 const Templates = () => {
   const { templates, addTemplate, deleteTemplate, updateTemplate } = useStore();
+  const { auth } = useFirebase();
+  
+  // Extract sender name from email (part before @)
+  const senderName = auth.currentUser?.email?.split('@')[0] || 'Salon';
+  
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", content: "", category: "general" as MessageTemplate["category"], imageUrl: "" });
@@ -60,7 +66,7 @@ const Templates = () => {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="page-title">Templates</h1>
           <p className="page-subtitle">
-            Create message templates with brochures • Use <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">{"{name}"}</code> to personalize
+            Create message templates with brochures • Use <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">{"{name}"}</code> for client name • <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">{"{sender}"}</code> for your name ({senderName})
           </p>
         </motion.div>
 
@@ -96,12 +102,12 @@ const Templates = () => {
                 <Textarea
                   value={form.content}
                   onChange={e => setForm({ ...form, content: e.target.value })}
-                  placeholder="Hi {name}! Your message here..."
+                  placeholder={`Hi {name}! Your message here... - {sender}`}
                   rows={4}
                   className="text-sm"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1 tracking-wider font-body">
-                  USE {"{name}"} — it will be replaced with each client's name
+                  Use {"{name}"} for client name • Use {"{sender}"} for your name ({senderName})
                 </p>
               </div>
 
