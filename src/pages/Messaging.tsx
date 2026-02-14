@@ -57,21 +57,28 @@ const Messaging = () => {
     }
 
     const selected = customers.filter(c => selectedCustomers.has(c.id));
+    
+    // Detect if mobile device
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    // Build a group SMS with all phone numbers
-    const phones = selected.map(c => {
-      const phone = c.mobile.replace(/[^0-9]/g, "");
-      return phone;
+    // Open WhatsApp for each customer with personalized message
+    selected.forEach((customer, index) => {
+      const phone = customer.mobile.replace(/[^0-9]/g, "");
+      const personalizedMsg = message
+        .replace(/\{sender\}/gi, senderName)
+        .replace(/\{name\}/gi, customer.name);
+      
+      const whatsappUrl = isMobile
+        ? `whatsapp://send?phone=${phone.startsWith("91") ? phone : "91" + phone}&text=${encodeURIComponent(personalizedMsg)}`
+        : `https://web.whatsapp.com/send?phone=${phone.startsWith("91") ? phone : "91" + phone}&text=${encodeURIComponent(personalizedMsg)}`;
+      
+      // Stagger opening to avoid browser blocking
+      setTimeout(() => {
+        window.open(whatsappUrl, "_blank");
+      }, index * 300);
     });
 
-    // Replace {sender} with sender name and {name} with empty (for group SMS)
-    const personalizedMsg = message
-      .replace(/\{sender\}/gi, senderName)
-      .replace(/\{name\}/gi, "");
-    const smsUrl = `sms:${phones.join(",")}?body=${encodeURIComponent(personalizedMsg)}`;
-    window.open(smsUrl, "_blank");
-
-    toast.success(`Opened SMS for ${selected.length} client(s)!`);
+    toast.success(`Opening WhatsApp for ${selected.length} client(s)!`);
     setSelectedCustomers(new Set());
   };
 
@@ -84,7 +91,7 @@ const Messaging = () => {
       <div className="page-header">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="page-title">Messaging</h1>
-          <p className="page-subtitle">Send personalized text messages to multiple clients at once</p>
+          <p className="page-subtitle">Send personalized WhatsApp messages to multiple clients at once</p>
         </motion.div>
       </div>
 
@@ -149,7 +156,7 @@ const Messaging = () => {
 
               <div className="rounded-xl bg-muted/30 p-3 border border-border">
                 <p className="text-[10px] font-body text-muted-foreground tracking-wider uppercase mb-1">How it works</p>
-                <p className="text-xs font-body text-foreground">Opens <strong>SMS app for each client</strong> with personalized messages pre-filled. Each client gets their own message with their name automatically inserted.</p>
+                <p className="text-xs font-body text-foreground">Opens <strong>WhatsApp for each client</strong> with personalized messages pre-filled. Each client gets their own message with their name automatically inserted.</p>
               </div>
 
 
@@ -160,7 +167,7 @@ const Messaging = () => {
                 className="w-full h-12 bg-[hsl(142,70%,40%)] text-white hover:bg-[hsl(142,70%,35%)] font-body tracking-wider text-sm shadow-lg"
               >
                 <Phone className="h-4 w-4 mr-2" />
-                Send SMS to {selectedCustomers.size} Client(s)
+                Send WhatsApp to {selectedCustomers.size} Client(s)
               </Button>
             </div>
           </div>

@@ -38,7 +38,7 @@ const Sidebar = () => {
         <div className="absolute bottom-0 left-6 right-6 h-px gold-gradient opacity-30" />
       </div>
 
-      <nav className="flex-1 px-4 py-8 space-y-2">
+      <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
         {navItems.map(({ to, icon: Icon, label }) => {
           const active = location.pathname === to;
           return (

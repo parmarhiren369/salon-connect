@@ -210,7 +210,7 @@ const Billings = () => {
     services.forEach(s => {
       const svc = salonServices.find(sv => sv.name === s);
       doc.text(s, 12, y);
-      doc.text(svc ? `₹${svc.price.toLocaleString("en-IN")}` : "—", w - 12, y, { align: "right" });
+      doc.text(svc ? `Rs.${svc.price.toLocaleString("en-IN")}` : "—", w - 12, y, { align: "right" });
       y += 6;
     });
 
@@ -222,13 +222,13 @@ const Billings = () => {
 
     doc.setFontSize(9);
     doc.text("Subtotal", 12, y);
-    doc.text(`₹${amt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+    doc.text(`Rs.${amt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
     y += 6;
 
     if ((b.discount ?? 0) > 0) {
       doc.setTextColor(191, 155, 48);
       doc.text(`Discount (${b.discount}%)`, 12, y);
-      doc.text(`-₹${Math.round(amt * (b.discount ?? 0) / 100).toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+      doc.text(`-Rs.${Math.round(amt * (b.discount ?? 0) / 100).toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
       y += 6;
     }
 
@@ -240,7 +240,7 @@ const Billings = () => {
     doc.setFontSize(13);
     doc.setTextColor(40, 40, 40);
     doc.text("Total", 12, y);
-    doc.text(`₹${finalAmt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+    doc.text(`Rs.${finalAmt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
 
     y += 15;
     doc.setFontSize(8);
