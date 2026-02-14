@@ -288,16 +288,43 @@ const Billings = () => {
     if (!customer) { toast.error("Customer not found"); return; }
     const phone = customer.mobile.replace(/[^0-9]/g, "");
 
-    const doc = generatePDF(b);
-    doc.save(`invoice-${customer.name.replace(/\s+/g, '-')}-${b.date}.pdf`);
-
     const summary = buildBillingSummary(b);
     const discountLine = summary.discountValue > 0
       ? `Discount (${summary.discountValue}%): -₹${summary.discountAmount.toLocaleString("en-IN")}`
       : "Discount: —";
-    const msg = `Hi ${summary.customerName}! 🧾\n\nYour bill from Life Style Studio:\n\nServices:\n${summary.lineItems || "• Service"}\n\nSubtotal: ₹${summary.subtotal.toLocaleString("en-IN")}\n${discountLine}\nTotal: ₹${summary.total.toLocaleString("en-IN")}\nPayment: ${summary.payment}\nDate: ${summary.date}\n\nPlease find the PDF invoice attached. Thank you! 💫`;
-    window.open(`https://web.whatsapp.com/send?phone=${phone.startsWith("91") ? phone : "91" + phone}&text=${encodeURIComponent(msg)}`, "_blank");
-    toast.success("PDF downloaded — attach it in WhatsApp chat");
+    const msg = `Hi ${summary.customerName}! 🧾\n\nYour bill from Life Style Studio:\n\nServices:\n${summary.lineItems || "• Service"}\n\nSubtotal: ₹${summary.subtotal.toLocaleString("en-IN")}\n${discountLine}\nTotal: ₹${summary.total.toLocaleString("en-IN")}\nPayment: ${summary.payment}\nDate: ${summary.date}\n\nThank you for choosing Life Style Studio! 💫`;
+    
+    // Detect if mobile device
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const whatsappUrl = isMobile
+      ? `whatsapp://send?phone=${phone.startsWith("91") ? phone : "91" + phone}&text=${encodeURIComponent(msg)}`
+      : `https://web.whatsapp.com/send?phone=${phone.startsWith("91") ? phone : "91" + phone}&text=${encodeURIComponent(msg)}`;
+    
+    // Open WhatsApp
+    window.open(whatsappUrl, "_blank");
+    
+    // Generate and prepare PDF for download
+    const doc = generatePDF(b);
+    const fileName = `invoice-${customer.name.replace(/\s+/g, '-')}-${b.date}.pdf`;
+    
+    // Show instructions based on device
+    if (isMobile) {
+      toast.success("WhatsApp opened! PDF ready - click Download to attach in chat", {
+        duration: 10000,
+        action: {
+          label: "Download PDF",
+          onClick: () => doc.save(fileName)
+        }
+      });
+    } else {
+      toast.success("WhatsApp Web opened! PDF ready - click Download to attach", {
+        duration: 10000,
+        action: {
+          label: "Download PDF",
+          onClick: () => doc.save(fileName)
+        }
+      });
+    }
   };
 
   return (
