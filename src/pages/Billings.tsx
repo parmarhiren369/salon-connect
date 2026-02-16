@@ -73,7 +73,6 @@ const Billings = () => {
     if (!form.selectedServices.find(s => s.id === service.id)) {
       setForm({ ...form, selectedServices: [...form.selectedServices, service] });
     }
-    setServicesOpen(false);
   };
 
   const removeService = (serviceId: string) => {
@@ -360,15 +359,13 @@ const Billings = () => {
                 </Select>
               </div>
               <div>
-                <label className="form-label">Service Category *</label>
-                <Select value={serviceCategory} onValueChange={v => {
-                  setServiceCategory(v);
-                  setForm(prev => ({ ...prev, selectedServices: [] }));
-                }}>
+                <label className="form-label">Service Category</label>
+                <Select value={serviceCategory} onValueChange={v => setServiceCategory(v)}>
                   <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Select category..." />
+                    <SelectValue placeholder="Filter by category..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__all__">All Categories</SelectItem>
                     {serviceCategories.map(category => (
                       <SelectItem key={category} value={category}>{category}</SelectItem>
                     ))}
@@ -383,31 +380,40 @@ const Billings = () => {
                       variant="outline"
                       role="combobox"
                       className="w-full h-11 justify-between font-normal"
-                      disabled={!serviceCategory || servicesByCategory.length === 0}
                     >
                       {form.selectedServices.length > 0
                         ? `${form.selectedServices.length} service(s) selected`
-                        : (serviceCategory ? "Select services..." : "Select category first")}
+                        : "Select services..."}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0" align="start">
                     <Command>
                       <CommandInput placeholder="Search services..." />
                       <CommandEmpty>No services found.</CommandEmpty>
-                      <CommandGroup className="max-h-64 overflow-auto">
-                        {servicesByCategory.map((service) => (
-                          <CommandItem
-                            key={service.id}
-                            onSelect={() => addService(service)}
-                            className="cursor-pointer"
-                          >
-                            <div className="flex items-center justify-between w-full">
-                              <span>{service.name}</span>
-                              <span className="text-sm text-muted-foreground">₹{service.price}</span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                      {(serviceCategory && serviceCategory !== "__all__" ? serviceCategories.filter(c => c === serviceCategory) : serviceCategories).map(cat => (
+                        <CommandGroup key={cat} heading={cat} className="max-h-64 overflow-auto">
+                          {salonServices.filter(s => s.category === cat).map((service) => {
+                            const isSelected = form.selectedServices.some(sel => sel.id === service.id);
+                            return (
+                              <CommandItem
+                                key={service.id}
+                                onSelect={() => isSelected ? removeService(service.id) : addService(service)}
+                                className={`cursor-pointer ${isSelected ? 'bg-accent/20' : ''}`}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`h-4 w-4 rounded border flex items-center justify-center ${isSelected ? 'bg-accent border-accent' : 'border-muted-foreground/30'}`}>
+                                      {isSelected && <span className="text-accent-foreground text-xs">✓</span>}
+                                    </div>
+                                    <span>{service.name}</span>
+                                  </div>
+                                  <span className="text-sm text-muted-foreground">₹{service.price}</span>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      ))}
                     </Command>
                   </PopoverContent>
                 </Popover>
