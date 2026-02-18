@@ -471,6 +471,14 @@ const Billings = () => {
                         </div>
                       </div>
                     ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setServicesOpen(true)}
+                      className="w-full h-9"
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add another service
+                    </Button>
                     <div className="space-y-2 pt-2 border-t border-border">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">Subtotal:</span>
