@@ -63,7 +63,7 @@ const Billings = () => {
 
   const totalRevenue = filtered.reduce((sum, b) => sum + parseFloat(String(b.amount)), 0);
 
-  const subtotal = form.selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const subtotal = form.selectedServices.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
   const discountAmount = (subtotal * (form.discount || 0)) / 100;
   const totalAmount = subtotal - discountAmount;
 
@@ -87,16 +87,19 @@ const Billings = () => {
       id: `${service.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       serviceId: service.id,
       name: service.name,
-      price: service.price,
+      price: Number(service.price) || 0,
     };
-    setForm({ ...form, selectedServices: [...form.selectedServices, lineItem] });
+    setForm(prev => ({
+      ...prev,
+      selectedServices: [...prev.selectedServices, lineItem]
+    }));
   };
 
   const removeService = (serviceLineId: string) => {
-    setForm({
-      ...form,
-      selectedServices: form.selectedServices.filter(s => s.id !== serviceLineId)
-    });
+    setForm(prev => ({
+      ...prev,
+      selectedServices: prev.selectedServices.filter(s => s.id !== serviceLineId)
+    }));
   };
 
   const resetForm = () => {
@@ -111,7 +114,9 @@ const Billings = () => {
   const startEdit = (billingId: string) => {
     const b = billings.find(x => x.id === billingId);
     if (!b) return;
-    const serviceNames = b.service ? b.service.split(", ") : [];
+    const serviceNames = b.service
+      ? b.service.split(",").map(name => name.trim()).filter(Boolean)
+      : [];
     const selected = serviceNames.map((name, index) => {
       const matchedService = salonServices.find(s => s.name === name);
       if (matchedService) {
