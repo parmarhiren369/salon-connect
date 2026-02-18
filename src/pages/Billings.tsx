@@ -474,7 +474,10 @@ const Billings = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setServicesOpen(true)}
+                      onClick={() => {
+                        setServiceCategory("__all__");
+                        setServicesOpen(true);
+                      }}
                       className="w-full h-9"
                     >
                       <Plus className="h-4 w-4 mr-2" /> Add another service
