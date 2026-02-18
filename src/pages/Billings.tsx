@@ -38,7 +38,7 @@ const Billings = () => {
   });
   const [form, setForm] = useState({
     customerId: "",
-    selectedServices: [] as { id: string; name: string; price: number }[],
+    selectedServices: [] as { id: string; serviceId?: string; name: string; price: number }[],
     discount: 0,
     date: new Date().toISOString().split("T")[0],
     paymentMethod: "cash" as 'cash' | 'upi' | 'card' | 'bank_transfer' | 'other'
@@ -49,8 +49,13 @@ const Billings = () => {
     const billingDate = new Date(b.date);
     const startDate = new Date(dateRange.start);
     const endDate = new Date(dateRange.end);
+    endDate.setHours(23, 59, 59, 999);
     const matchesDateRange = billingDate >= startDate && billingDate <= endDate;
     return matchesService && matchesDateRange;
+  }).sort((a, b) => {
+    const aCreated = new Date((a as BillingType & { createdAt?: string }).createdAt || a.date).getTime();
+    const bCreated = new Date((b as BillingType & { createdAt?: string }).createdAt || b.date).getTime();
+    return bCreated - aCreated;
   });
 
   const totalRevenue = filtered.reduce((sum, b) => sum + parseFloat(String(b.amount)), 0);
@@ -70,15 +75,19 @@ const Billings = () => {
   }, [salonServices, serviceCategory]);
 
   const addService = (service: { id: string; name: string; price: number }) => {
-    if (!form.selectedServices.find(s => s.id === service.id)) {
-      setForm({ ...form, selectedServices: [...form.selectedServices, service] });
-    }
+    const lineItem = {
+      id: `${service.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      serviceId: service.id,
+      name: service.name,
+      price: service.price,
+    };
+    setForm({ ...form, selectedServices: [...form.selectedServices, lineItem] });
   };
 
-  const removeService = (serviceId: string) => {
+  const removeService = (serviceLineId: string) => {
     setForm({
       ...form,
-      selectedServices: form.selectedServices.filter(s => s.id !== serviceId)
+      selectedServices: form.selectedServices.filter(s => s.id !== serviceLineId)
     });
   };
 
@@ -92,9 +101,22 @@ const Billings = () => {
     const b = billings.find(x => x.id === billingId);
     if (!b) return;
     const serviceNames = b.service ? b.service.split(", ") : [];
-    const selected = serviceNames
-      .map(name => salonServices.find(s => s.name === name))
-      .filter(Boolean) as { id: string; name: string; price: number }[];
+    const selected = serviceNames.map((name, index) => {
+      const matchedService = salonServices.find(s => s.name === name);
+      if (matchedService) {
+        return {
+          id: `${matchedService.id}-${index}-${Date.now()}`,
+          serviceId: matchedService.id,
+          name: matchedService.name,
+          price: matchedService.price,
+        };
+      }
+      return {
+        id: `custom-${b.id}-${index}`,
+        name,
+        price: 0,
+      };
+    });
     const amountValue = typeof b.amount === "string" ? parseFloat(b.amount) : b.amount;
     const fallbackSelected = selected.length === 0 && b.service
       ? [{ id: `custom-${b.id}`, name: b.service, price: amountValue || 0 }]
@@ -107,7 +129,7 @@ const Billings = () => {
       paymentMethod: b.paymentMethod || "cash"
     });
     const firstService = fallbackSelected[0];
-    setServiceCategory(firstService ? salonServices.find(s => s.id === firstService.id)?.category || "" : "");
+    setServiceCategory(firstService?.serviceId ? salonServices.find(s => s.id === firstService.serviceId)?.category || "" : "");
     setEditId(b.id);
     setOpen(true);
   };
@@ -393,21 +415,19 @@ const Billings = () => {
                       {(serviceCategory && serviceCategory !== "__all__" ? serviceCategories.filter(c => c === serviceCategory) : serviceCategories).map(cat => (
                         <CommandGroup key={cat} heading={cat} className="max-h-64 overflow-auto">
                           {salonServices.filter(s => s.category === cat).map((service) => {
-                            const isSelected = form.selectedServices.some(sel => sel.id === service.id);
+                            const selectedCount = form.selectedServices.filter(sel => sel.serviceId === service.id).length;
                             return (
                               <CommandItem
                                 key={service.id}
-                                onSelect={() => isSelected ? removeService(service.id) : addService(service)}
-                                className={`cursor-pointer ${isSelected ? 'bg-accent/20' : ''}`}
+                                onSelect={() => addService(service)}
+                                className={`cursor-pointer ${selectedCount > 0 ? 'bg-accent/20' : ''}`}
                               >
                                 <div className="flex items-center justify-between w-full">
                                   <div className="flex items-center gap-2">
-                                    <div className={`h-4 w-4 rounded border flex items-center justify-center ${isSelected ? 'bg-accent border-accent' : 'border-muted-foreground/30'}`}>
-                                      {isSelected && <span className="text-accent-foreground text-xs">✓</span>}
-                                    </div>
+                                    <div className="h-4 w-4 rounded border border-muted-foreground/30 flex items-center justify-center text-xs font-semibold">+</div>
                                     <span>{service.name}</span>
                                   </div>
-                                  <span className="text-sm text-muted-foreground">₹{service.price}</span>
+                                  <span className="text-sm text-muted-foreground">₹{service.price}{selectedCount > 0 ? ` • ${selectedCount}` : ''}</span>
                                 </div>
                               </CommandItem>
                             );
@@ -428,6 +448,19 @@ const Billings = () => {
                         <span className="text-sm font-medium">{service.name}</span>
                         <div className="flex items-center gap-3">
                           <span className="text-sm text-accent font-semibold">₹{service.price}</span>
+                          {service.serviceId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const baseService = salonServices.find(s => s.id === service.serviceId);
+                                if (baseService) addService(baseService);
+                              }}
+                              className="h-6 w-6 rounded-full hover:bg-accent/10 flex items-center justify-center text-muted-foreground hover:text-accent transition-colors"
+                              title="Add another"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => removeService(service.id)}
