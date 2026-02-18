@@ -32,6 +32,9 @@ const Billings = () => {
   const [serviceSearch, setServiceSearch] = useState("");
   const [servicesOpen, setServicesOpen] = useState(false);
   const [serviceCategory, setServiceCategory] = useState("");
+  const [showAdditionalCategoryFlow, setShowAdditionalCategoryFlow] = useState(false);
+  const [additionalCategory, setAdditionalCategory] = useState("");
+  const [additionalServiceId, setAdditionalServiceId] = useState("");
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
     end: new Date().toISOString().split("T")[0]
@@ -74,6 +77,11 @@ const Billings = () => {
     return salonServices.filter(s => s.category === serviceCategory);
   }, [salonServices, serviceCategory]);
 
+  const additionalServicesByCategory = useMemo(() => {
+    if (!additionalCategory) return [];
+    return salonServices.filter(s => s.category === additionalCategory);
+  }, [salonServices, additionalCategory]);
+
   const addService = (service: { id: string; name: string; price: number }) => {
     const lineItem = {
       id: `${service.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -94,6 +102,9 @@ const Billings = () => {
   const resetForm = () => {
     setForm({ customerId: "", selectedServices: [], discount: 0, date: new Date().toISOString().split("T")[0], paymentMethod: "cash" });
     setServiceCategory("");
+    setShowAdditionalCategoryFlow(false);
+    setAdditionalCategory("");
+    setAdditionalServiceId("");
     setEditId(null);
   };
 
@@ -471,17 +482,87 @@ const Billings = () => {
                         </div>
                       </div>
                     ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setServiceCategory("__all__");
-                        setServicesOpen(true);
-                      }}
-                      className="w-full h-9"
-                    >
-                      <Plus className="h-4 w-4 mr-2" /> Add another service
-                    </Button>
+                    {!showAdditionalCategoryFlow ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowAdditionalCategoryFlow(true)}
+                        className="w-full h-9"
+                      >
+                        <Plus className="h-4 w-4 mr-2" /> Add another category
+                      </Button>
+                    ) : (
+                      <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
+                        <div>
+                          <label className="form-label">Select Category</label>
+                          <Select
+                            value={additionalCategory}
+                            onValueChange={(value) => {
+                              setAdditionalCategory(value);
+                              setAdditionalServiceId("");
+                            }}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Choose category..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {serviceCategories.map(category => (
+                                <SelectItem key={category} value={category}>{category}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <label className="form-label">Select Service</label>
+                          <Select
+                            value={additionalServiceId}
+                            onValueChange={setAdditionalServiceId}
+                            disabled={!additionalCategory}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder={additionalCategory ? "Choose service..." : "Select category first"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {additionalServicesByCategory.map(service => (
+                                <SelectItem key={service.id} value={service.id}>
+                                  {service.name} — ₹{service.price}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            className="flex-1"
+                            disabled={!additionalServiceId}
+                            onClick={() => {
+                              const selectedService = salonServices.find(s => s.id === additionalServiceId);
+                              if (!selectedService) return;
+                              addService(selectedService);
+                              setShowAdditionalCategoryFlow(false);
+                              setAdditionalCategory("");
+                              setAdditionalServiceId("");
+                            }}
+                          >
+                            Add Service
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setShowAdditionalCategoryFlow(false);
+                              setAdditionalCategory("");
+                              setAdditionalServiceId("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-2 pt-2 border-t border-border">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">Subtotal:</span>
