@@ -10,9 +10,12 @@ import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 
 const Appointments = () => {
-  const { appointments, customers, addAppointment, updateAppointment, deleteAppointment } = useStore();
+  const { appointments, customers, addAppointment, updateAppointment, deleteAppointment, addCustomer } = useStore();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientMobile, setNewClientMobile] = useState("");
   const [form, setForm] = useState({
     customerId: "",
     service: "",
@@ -31,6 +34,9 @@ const Appointments = () => {
   }, [appointments]);
 
   const resetForm = () => {
+    setClientMode("existing");
+    setNewClientName("");
+    setNewClientMobile("");
     setForm({
       customerId: "",
       service: "",
@@ -43,6 +49,9 @@ const Appointments = () => {
   };
 
   const startEdit = (appointment: AppointmentType) => {
+    setClientMode("existing");
+    setNewClientName("");
+    setNewClientMobile("");
     setForm({
       customerId: appointment.customerId,
       service: appointment.service,
@@ -55,17 +64,40 @@ const Appointments = () => {
     setOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.customerId || !form.service || !form.date || !form.time) {
+
+    let appointmentCustomerId = form.customerId;
+    let appointmentCustomerName = customers.find(c => c.id === form.customerId)?.name || "Unknown";
+
+    if (clientMode === "new") {
+      const name = newClientName.trim();
+      const mobile = newClientMobile.trim();
+      if (!name || !mobile) {
+        toast.error("New client name and mobile are required");
+        return;
+      }
+      const createdId = await addCustomer({
+        name,
+        mobile,
+        date: new Date().toISOString().split("T")[0],
+      });
+      if (!createdId) {
+        toast.error("Could not create new client");
+        return;
+      }
+      appointmentCustomerId = createdId;
+      appointmentCustomerName = name;
+    }
+
+    if (!appointmentCustomerId || !form.service || !form.date || !form.time) {
       toast.error("Client, service, date and time are required");
       return;
     }
 
-    const customer = customers.find(c => c.id === form.customerId);
     const payload = {
-      customerId: form.customerId,
-      customerName: customer?.name || "Unknown",
+      customerId: appointmentCustomerId,
+      customerName: appointmentCustomerName,
       service: form.service,
       date: form.date,
       time: form.time,
@@ -111,16 +143,50 @@ const Appointments = () => {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-5 mt-4">
               <div>
-                <label className="form-label">Client *</label>
-                <Select value={form.customerId} onValueChange={v => setForm({ ...form, customerId: v })}>
-                  <SelectTrigger className="h-11"><SelectValue placeholder="Select client..." /></SelectTrigger>
+                <label className="form-label">Client Type *</label>
+                <Select value={clientMode} onValueChange={(value: "existing" | "new") => setClientMode(value)}>
+                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {customers.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name} — {c.mobile}</SelectItem>
-                    ))}
+                    <SelectItem value="existing">Existing Client</SelectItem>
+                    <SelectItem value="new">New Client</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {clientMode === "existing" ? (
+                <div>
+                  <label className="form-label">Client *</label>
+                  <Select value={form.customerId} onValueChange={v => setForm({ ...form, customerId: v })}>
+                    <SelectTrigger className="h-11"><SelectValue placeholder="Select client..." /></SelectTrigger>
+                    <SelectContent>
+                      {customers.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name} — {c.mobile}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="form-label">New Client Name *</label>
+                    <Input
+                      value={newClientName}
+                      onChange={e => setNewClientName(e.target.value)}
+                      placeholder="Enter client name"
+                      className="h-11"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">New Client Mobile *</label>
+                    <Input
+                      value={newClientMobile}
+                      onChange={e => setNewClientMobile(e.target.value)}
+                      placeholder="Enter mobile number"
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="form-label">Service *</label>

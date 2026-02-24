@@ -92,7 +92,7 @@ interface AppState {
   setSalonServices: (services: SalonService[]) => void;
   setMemberships: (memberships: Membership[]) => void;
   setMembershipPlans: (plans: MembershipPlan[]) => void;
-  addCustomer: (customer: Omit<Customer, 'id'>) => void;
+  addCustomer: (customer: Omit<Customer, 'id'>) => Promise<string | void>;
   deleteCustomer: (id: string) => void;
   updateCustomer: (id: string, data: Partial<Customer>) => void;
   addTemplate: (template: Omit<MessageTemplate, 'id'>) => void;
@@ -139,7 +139,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!db) return;
     try {
       const id = await firestoreSync.add(db, 'customers', customer);
-      // Update is handled by real-time listener
+      return id;
     } catch (error) {
       console.error('Error adding customer:', error);
     }
