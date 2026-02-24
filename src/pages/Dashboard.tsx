@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { formatDate } from "@/lib/utils";
 
 const Dashboard = () => {
-  const { customers, templates } = useStore();
+  const { customers, templates, appointments } = useStore();
 
   const thisMonth = customers.filter(c => {
     const d = new Date(c.date);
@@ -40,10 +40,12 @@ const Dashboard = () => {
     { label: "Ready to Message", value: customers.filter(c => c.mobile).length, icon: MessageSquare, subtitle: "With mobile" },
   ];
 
-  const recentCustomers = [...customers]
-    .reverse()
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
+  const recentAppointments = [...appointments]
+    .sort((a, b) => {
+      const first = new Date(`${b.date}T${b.time || "00:00"}`).getTime();
+      const second = new Date(`${a.date}T${a.time || "00:00"}`).getTime();
+      return first - second;
+    });
 
   return (
     <div>
@@ -77,7 +79,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Recent Clients */}
+      {/* Recent Appointments */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -86,24 +88,24 @@ const Dashboard = () => {
       >
         <div className="p-6 border-b border-border flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-display font-semibold">Recent Clients</h2>
-            <p className="text-xs text-muted-foreground font-body tracking-wider mt-1">Latest additions to your client list</p>
+            <h2 className="text-2xl font-display font-semibold">Recent Appointments</h2>
+            <p className="text-xs text-muted-foreground font-body tracking-wider mt-1">All appointments are listed here</p>
           </div>
           <Calendar className="h-5 w-5 text-accent" />
         </div>
-        {recentCustomers.length === 0 ? (
+        {recentAppointments.length === 0 ? (
           <div className="p-16 text-center">
             <div className="avatar-circle mx-auto mb-4 h-16 w-16">
-              <Users className="h-7 w-7 text-accent-foreground" />
+              <Calendar className="h-7 w-7 text-accent-foreground" />
             </div>
-            <p className="font-display text-xl text-foreground mb-1">No clients yet</p>
-            <p className="font-body text-sm text-muted-foreground">Add your first client to get started</p>
+            <p className="font-display text-xl text-foreground mb-1">No appointments yet</p>
+            <p className="font-body text-sm text-muted-foreground">Add your first appointment to get started</p>
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {recentCustomers.map((c, i) => (
+            {recentAppointments.map((appointment, i) => (
               <motion.div
-                key={c.id}
+                key={appointment.id}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 + i * 0.05 }}
@@ -111,18 +113,16 @@ const Dashboard = () => {
               >
                 <div className="flex items-center gap-4">
                   <div className="avatar-circle">
-                    <span className="avatar-text">{c.name.charAt(0).toUpperCase()}</span>
+                    <span className="avatar-text">{(appointment.customerName || "C").charAt(0).toUpperCase()}</span>
                   </div>
                   <div>
-                    <p className="font-body font-semibold text-foreground text-sm">{c.name}</p>
-                    <p className="text-xs text-muted-foreground font-body tracking-wide">{c.mobile}</p>
+                    <p className="font-body font-semibold text-foreground text-sm">{appointment.customerName || "Unknown"}</p>
+                    <p className="text-xs text-muted-foreground font-body tracking-wide">{appointment.service}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-muted-foreground font-body">{formatDate(c.date)}</span>
-                  {c.services && (
-                    <p className="text-[10px] text-accent font-body font-medium mt-0.5">{c.services}</p>
-                  )}
+                  <span className="text-xs text-muted-foreground font-body">{formatDate(appointment.date)} {appointment.time ? `• ${appointment.time}` : ""}</span>
+                  <p className="text-[10px] text-accent font-body font-medium mt-0.5 capitalize">{appointment.status}</p>
                 </div>
               </motion.div>
             ))}

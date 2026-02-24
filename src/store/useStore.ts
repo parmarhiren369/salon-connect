@@ -64,11 +64,23 @@ export interface SalonService {
   category: string;
 }
 
+export interface Appointment {
+  id: string;
+  customerId: string;
+  customerName?: string;
+  date: string;
+  time: string;
+  service: string;
+  notes?: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+}
+
 interface AppState {
   db: Firestore | null;
   customers: Customer[];
   templates: MessageTemplate[];
   billings: Billing[];
+  appointments: Appointment[];
   salonServices: SalonService[];
   memberships: Membership[];
   membershipPlans: MembershipPlan[];
@@ -76,6 +88,7 @@ interface AppState {
   setCustomers: (customers: Customer[]) => void;
   setTemplates: (templates: MessageTemplate[]) => void;
   setBillings: (billings: Billing[]) => void;
+  setAppointments: (appointments: Appointment[]) => void;
   setSalonServices: (services: SalonService[]) => void;
   setMemberships: (memberships: Membership[]) => void;
   setMembershipPlans: (plans: MembershipPlan[]) => void;
@@ -88,6 +101,9 @@ interface AppState {
   addBilling: (billing: Omit<Billing, 'id'>) => void;
   deleteBilling: (id: string) => void;
   updateBilling: (id: string, data: Partial<Billing>) => void;
+  addAppointment: (appointment: Omit<Appointment, 'id'>) => void;
+  deleteAppointment: (id: string) => void;
+  updateAppointment: (id: string, data: Partial<Appointment>) => void;
   addSalonService: (service: Omit<SalonService, 'id'>) => void;
   deleteSalonService: (id: string) => void;
   updateSalonService: (id: string, data: Partial<SalonService>) => void;
@@ -103,6 +119,7 @@ export const useStore = create<AppState>((set, get) => ({
   db: null,
   customers: [],
   billings: [],
+  appointments: [],
   salonServices: [],
   memberships: [],
   membershipPlans: [],
@@ -112,6 +129,7 @@ export const useStore = create<AppState>((set, get) => ({
   setCustomers: (customers) => set({ customers }),
   setTemplates: (templates) => set({ templates }),
   setBillings: (billings) => set({ billings }),
+  setAppointments: (appointments) => set({ appointments }),
   setSalonServices: (services) => set({ salonServices: services }),
   setMemberships: (memberships) => set({ memberships }),
   setMembershipPlans: (plans) => set({ membershipPlans: plans }),
@@ -204,6 +222,36 @@ export const useStore = create<AppState>((set, get) => ({
       await firestoreSync.update(db, 'billings', id, data);
     } catch (error) {
       console.error('Error updating billing:', error);
+    }
+  },
+
+  addAppointment: async (appointment) => {
+    const { db } = get();
+    if (!db) return;
+    try {
+      await firestoreSync.add(db, 'appointments', appointment);
+    } catch (error) {
+      console.error('Error adding appointment:', error);
+    }
+  },
+
+  deleteAppointment: async (id) => {
+    const { db } = get();
+    if (!db) return;
+    try {
+      await firestoreSync.delete(db, 'appointments', id);
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+    }
+  },
+
+  updateAppointment: async (id, data) => {
+    const { db } = get();
+    if (!db) return;
+    try {
+      await firestoreSync.update(db, 'appointments', id, data);
+    } catch (error) {
+      console.error('Error updating appointment:', error);
     }
   },
 

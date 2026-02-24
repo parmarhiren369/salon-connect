@@ -32,6 +32,8 @@ const Billings = () => {
   const [serviceSearch, setServiceSearch] = useState("");
   const [servicesOpen, setServicesOpen] = useState(false);
   const [serviceCategory, setServiceCategory] = useState("");
+  const [manualServiceName, setManualServiceName] = useState("");
+  const [manualServicePrice, setManualServicePrice] = useState("");
   const [showAdditionalCategoryFlow, setShowAdditionalCategoryFlow] = useState(false);
   const [additionalCategory, setAdditionalCategory] = useState("");
   const [additionalServiceId, setAdditionalServiceId] = useState("");
@@ -102,9 +104,31 @@ const Billings = () => {
     }));
   };
 
+  const addManualService = () => {
+    const serviceName = manualServiceName.trim();
+    if (!serviceName) {
+      toast.error("Please enter service name");
+      return;
+    }
+    const servicePrice = Number(manualServicePrice) || 0;
+    const lineItem = {
+      id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: serviceName,
+      price: servicePrice,
+    };
+    setForm(prev => ({
+      ...prev,
+      selectedServices: [...prev.selectedServices, lineItem],
+    }));
+    setManualServiceName("");
+    setManualServicePrice("");
+  };
+
   const resetForm = () => {
     setForm({ customerId: "", selectedServices: [], discount: 0, date: new Date().toISOString().split("T")[0], paymentMethod: "cash" });
     setServiceCategory("");
+    setManualServiceName("");
+    setManualServicePrice("");
     setShowAdditionalCategoryFlow(false);
     setAdditionalCategory("");
     setAdditionalServiceId("");
@@ -453,6 +477,30 @@ const Billings = () => {
                     </Command>
                   </PopoverContent>
                 </Popover>
+
+                <div className="mt-3 space-y-2 rounded-lg border border-border p-3 bg-muted/30">
+                  <label className="form-label">Add service manually</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px_auto] gap-2">
+                    <Input
+                      value={manualServiceName}
+                      onChange={(e) => setManualServiceName(e.target.value)}
+                      placeholder="Enter service name"
+                      className="h-10"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={manualServicePrice}
+                      onChange={(e) => setManualServicePrice(e.target.value)}
+                      placeholder="Price"
+                      className="h-10"
+                    />
+                    <Button type="button" variant="outline" onClick={addManualService} className="h-10">
+                      Add
+                    </Button>
+                  </div>
+                </div>
                 
                 {form.selectedServices.length > 0 && (
                   <div className="mt-3 space-y-2">

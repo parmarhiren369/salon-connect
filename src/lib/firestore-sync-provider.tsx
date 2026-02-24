@@ -2,7 +2,7 @@ import { useEffect, ReactNode } from 'react';
 import { useFirebase } from './firebase-context';
 import { useStore } from '@/store/useStore';
 import { firestoreSync } from './firestore-sync';
-import type { Customer, MessageTemplate, Billing, SalonService, Membership, MembershipPlan } from '@/store/useStore';
+import type { Customer, MessageTemplate, Billing, SalonService, Membership, MembershipPlan, Appointment } from '@/store/useStore';
 
 export function FirestoreSync({ children }: { children: ReactNode }) {
   const { db } = useFirebase();
@@ -37,6 +37,12 @@ export function FirestoreSync({ children }: { children: ReactNode }) {
     unsubscribers.push(
       firestoreSync.subscribe<Billing>(db, 'billings', (data) => {
         store.setBillings(data);
+      })
+    );
+
+    unsubscribers.push(
+      firestoreSync.subscribe<Appointment>(db, 'appointments', (data) => {
+        store.setAppointments(data);
       })
     );
 

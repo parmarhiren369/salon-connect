@@ -9,12 +9,12 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
-import Services from "./pages/Services";
 import Billings from "./pages/Billings";
 import Birthdays from "./pages/Birthdays";
 import Templates from "./pages/Templates";
 import Messaging from "./pages/Messaging";
 import Memberships from "./pages/Memberships";
+import Appointments from "./pages/Appointments";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -51,11 +51,11 @@ const App = () => (
               }
             />
             <Route
-              path="/services"
+              path="/appointments"
               element={
                 <ProtectedRoute>
                   <Layout>
-                    <Services />
+                    <Appointments />
                   </Layout>
                 </ProtectedRoute>
               }
