@@ -32,6 +32,8 @@ const Memberships = () => {
     startDate: new Date().toISOString().split("T")[0],
     endDate: "",
     amount: "",
+    advanceAmount: "",
+    offerDetails: "",
     totalBenefits: "",
     usedBenefits: "0"
   });
@@ -50,6 +52,8 @@ const Memberships = () => {
       startDate: form.startDate,
       endDate: form.endDate,
       amount: parseFloat(form.amount),
+      advanceAmount: parseFloat(form.advanceAmount) || 0,
+      offerDetails: form.offerDetails,
       totalBenefits: parseInt(form.totalBenefits) || 0,
       usedBenefits: Math.max(0, parseInt(form.usedBenefits) || 0),
       status: (isExpired ? 'expired' : 'active') as 'active' | 'expired',
@@ -61,7 +65,7 @@ const Memberships = () => {
       addMembership(data);
       toast.success("Membership added");
     }
-    setForm({ customerId: "", planId: "", plan: "", startDate: new Date().toISOString().split("T")[0], endDate: "", amount: "", totalBenefits: "", usedBenefits: "0" });
+    setForm({ customerId: "", planId: "", plan: "", startDate: new Date().toISOString().split("T")[0], endDate: "", amount: "", advanceAmount: "", offerDetails: "", totalBenefits: "", usedBenefits: "0" });
     setEditId(null);
     setOpen(false);
   };
@@ -94,6 +98,8 @@ const Memberships = () => {
       startDate: m.startDate,
       endDate: m.endDate,
       amount: m.amount.toString(),
+      advanceAmount: (m.advanceAmount ?? 0).toString(),
+      offerDetails: m.offerDetails || "",
       totalBenefits: (m.totalBenefits ?? 0).toString(),
       usedBenefits: (m.usedBenefits ?? 0).toString(),
     });
@@ -180,6 +186,14 @@ const Memberships = () => {
               <div>
                 <label className="form-label">Amount (₹) *</label>
                 <Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="5000" className="h-11" />
+              </div>
+              <div>
+                <label className="form-label">Advance Received (₹)</label>
+                <Input type="number" value={form.advanceAmount} onChange={e => setForm({ ...form, advanceAmount: e.target.value })} placeholder="2000" className="h-11" />
+              </div>
+              <div>
+                <label className="form-label">Offer Details</label>
+                <Input value={form.offerDetails} onChange={e => setForm({ ...form, offerDetails: e.target.value })} placeholder="Example: 12 facials on discounted price" className="h-11" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

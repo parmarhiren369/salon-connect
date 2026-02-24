@@ -23,8 +23,17 @@ export interface Membership {
   startDate: string;
   endDate: string;
   amount: number;
+  advanceAmount?: number;
+  offerDetails?: string;
   totalBenefits?: number;
   usedBenefits?: number;
+  monthlyUsage?: {
+    monthKey: string;
+    monthLabel: string;
+    serviceTaken: boolean;
+    usedDate?: string;
+    notes?: string;
+  }[];
   status: 'active' | 'expired';
 }
 

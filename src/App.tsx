@@ -15,6 +15,7 @@ import Templates from "./pages/Templates";
 import Messaging from "./pages/Messaging";
 import Memberships from "./pages/Memberships";
 import Appointments from "./pages/Appointments";
+import MembershipDetails from "./pages/MembershipDetails";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -46,6 +47,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Customers />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customers/:customerId/membership"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <MembershipDetails />
                   </Layout>
                 </ProtectedRoute>
               }

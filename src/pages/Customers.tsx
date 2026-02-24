@@ -8,8 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 const Customers = () => {
+  const navigate = useNavigate();
   const { customers, addCustomer, deleteCustomer, updateCustomer, memberships, addMembership, updateMembership, membershipPlans } = useStore();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -23,6 +25,8 @@ const Customers = () => {
     startDate: new Date().toISOString().split("T")[0],
     endDate: "",
     amount: "",
+    advanceAmount: "",
+    offerDetails: "",
     totalBenefits: ""
   });
 
@@ -60,6 +64,8 @@ const Customers = () => {
       startDate: new Date().toISOString().split("T")[0],
       endDate: "",
       amount: "",
+      advanceAmount: "",
+      offerDetails: "",
       totalBenefits: ""
     });
     setMembershipOpen(true);
@@ -97,6 +103,8 @@ const Customers = () => {
       startDate: membershipForm.startDate,
       endDate: membershipForm.endDate,
       amount: parseFloat(membershipForm.amount),
+      advanceAmount: parseFloat(membershipForm.advanceAmount) || 0,
+      offerDetails: membershipForm.offerDetails,
       totalBenefits: parseInt(membershipForm.totalBenefits) || 0,
       usedBenefits: 0,
       status: (isExpired ? "expired" : "active") as 'active' | 'expired',
@@ -263,6 +271,11 @@ const Customers = () => {
                   <button onClick={() => startMembership(c)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg hover:bg-muted transition-colors text-xs font-body text-muted-foreground hover:text-foreground">
                     <Crown className="h-3.5 w-3.5" /> Membership
                   </button>
+                  {getActiveMembership(c.id) && (
+                    <button onClick={() => navigate(`/customers/${c.id}/membership`)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg hover:bg-muted transition-colors text-xs font-body text-muted-foreground hover:text-foreground">
+                      View Details
+                    </button>
+                  )}
                   <button onClick={() => { deleteCustomer(c.id); toast.success("Client removed"); }} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg hover:bg-destructive/10 transition-colors text-xs font-body text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" /> Remove
                   </button>
@@ -273,7 +286,7 @@ const Customers = () => {
         </div>
       )}
 
-      <Dialog open={membershipOpen} onOpenChange={(v) => { setMembershipOpen(v); if (!v) { setMembershipForm({ customerId: "", planId: "", plan: "", startDate: new Date().toISOString().split("T")[0], endDate: "", amount: "", totalBenefits: "" }); } }}>
+      <Dialog open={membershipOpen} onOpenChange={(v) => { setMembershipOpen(v); if (!v) { setMembershipForm({ customerId: "", planId: "", plan: "", startDate: new Date().toISOString().split("T")[0], endDate: "", amount: "", advanceAmount: "", offerDetails: "", totalBenefits: "" }); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display text-3xl">Assign Membership</DialogTitle>
@@ -316,6 +329,16 @@ const Customers = () => {
                 <label className="form-label">Amount (₹) *</label>
                 <Input type="number" value={membershipForm.amount} onChange={e => setMembershipForm({ ...membershipForm, amount: e.target.value })} placeholder="5000" className="h-11" />
               </div>
+              <div>
+                <label className="form-label">Advance (₹)</label>
+                <Input type="number" value={membershipForm.advanceAmount} onChange={e => setMembershipForm({ ...membershipForm, advanceAmount: e.target.value })} placeholder="2000" className="h-11" />
+              </div>
+            </div>
+            <div>
+              <label className="form-label">Offer Details</label>
+              <Input value={membershipForm.offerDetails} onChange={e => setMembershipForm({ ...membershipForm, offerDetails: e.target.value })} placeholder="Example: 12 facial on discounted price" className="h-11" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="form-label">Total Benefits *</label>
                 <Input type="number" value={membershipForm.totalBenefits} onChange={e => setMembershipForm({ ...membershipForm, totalBenefits: e.target.value })} placeholder="10" className="h-11" min="0" />
