@@ -1,23 +1,24 @@
 import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { useFirebase } from "@/lib/firebase-context";
 import { userProfile } from "@/lib/user-profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Loader2, Lock, Mail, Monitor, Smartphone, User } from "lucide-react";
+import { Loader2, Lock, Monitor, Smartphone, User, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
-  const { auth, db } = useFirebase();
+  const { auth } = useFirebase();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", username: "" });
-  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [form, setForm] = useState({ phone: "", password: "", username: "" });
   
-  // Only allow this specific email to access the system
+  // Only allow this specific phone number to access the system
+  const AUTHORIZED_PHONE = "7600572772";
+  const AUTHORIZED_PHONE_NORMALIZED = AUTHORIZED_PHONE.replace(/\D/g, "");
+  // Use fixed account email for Firebase auth behind the scenes
   const AUTHORIZED_EMAIL = "lifestylebeautysalon7777@gmail.com";
   const [deviceMode, setDeviceMode] = useState<"desktop" | "mobile">(() => {
     const saved = localStorage.getItem("ls-device-mode");
@@ -41,24 +42,25 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const normalizedPhone = form.phone.replace(/\D/g, "");
     
-    // Validate that only authorized email can login
-    if (form.email.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase()) {
-      toast.error("Access denied. Unauthorized email address.");
+    if (normalizedPhone !== AUTHORIZED_PHONE_NORMALIZED) {
+      toast.error("Access denied. Unauthorized phone number.");
       setLoading(false);
       return;
     }
     
     try {
-      await signInWithEmailAndPassword(auth, form.email, form.password);
+      await signInWithEmailAndPassword(auth, AUTHORIZED_EMAIL, form.password);
       
       // Store email for username extraction
-      localStorage.setItem('ls-user-email', form.email);
+      localStorage.setItem('ls-user-email', AUTHORIZED_EMAIL);
       
       // Check if username is set, if not prompt for it
       const username = form.username || userProfile.getUsername();
       if (!form.username || form.username === 'Salon') {
-        setShowUsernamePrompt(true);
+        toast.error("Please enter your name");
         setLoading(false);
         return;
       }
@@ -70,7 +72,7 @@ const Login = () => {
       navigate("/");
     } catch (error: any) {
       const errorMessage = error.code === "auth/invalid-credential" 
-        ? "Invalid email or password" 
+        ? "Invalid phone number or password" 
         : error.code === "auth/user-not-found"
         ? "Account not found. Please contact administrator."
         : "Authentication failed. Please try again.";
@@ -162,18 +164,21 @@ const Login = () => {
             </div>
 
             <div>
-              <label className="form-label">Email Address</label>
+              <label className="form-label">Phone Number</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="you@example.com"
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="Enter phone number"
                   className="pl-10 h-12"
                   required
                 />
               </div>
+              <p className="mt-1 text-[11px] text-muted-foreground font-body">
+                Only authorized number can login: {AUTHORIZED_PHONE}
+              </p>
             </div>
 
             <div>

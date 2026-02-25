@@ -11,6 +11,7 @@ import jsPDF from "jspdf";
 import logoImg from "@/assets/logo.png";
 
 const SALON_ADDRESS = "Address: Shop No. 18, Ground Floor, Samanway Westfields, High Tention Road, opp. Raj Path Complex, Bhayli, Vadodara, Gujarat 391410";
+const SALON_PHONE = "7600572772";
 
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash", icon: Banknote },
@@ -238,6 +239,10 @@ const Billings = () => {
     doc.setFontSize(6.5);
     doc.setTextColor(130, 130, 130);
     doc.text(headerAddress, 32, 26);
+
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Ph: ${SALON_PHONE}`, 10, 33);
 
     doc.setDrawColor(191, 155, 48);
     doc.setLineWidth(0.8);
