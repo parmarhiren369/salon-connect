@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useStore, Appointment as AppointmentType } from "@/store/useStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarDays, Plus, Edit2, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -131,108 +130,120 @@ const Appointments = () => {
           <p className="page-subtitle">Manage all client appointments</p>
         </motion.div>
 
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6">
-              <Plus className="h-4 w-4 mr-2" /> New Appointment
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="font-display text-3xl">{editId ? "Edit Appointment" : "New Appointment"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-5 mt-4">
-              <div>
-                <label className="form-label">Client Type *</label>
-                <Select value={clientMode} onValueChange={(value: "existing" | "new") => setClientMode(value)}>
-                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="existing">Existing Client</SelectItem>
-                    <SelectItem value="new">New Client</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {clientMode === "existing" ? (
-                <div>
-                  <label className="form-label">Client *</label>
-                  <Select value={form.customerId} onValueChange={v => setForm({ ...form, customerId: v })}>
-                    <SelectTrigger className="h-11"><SelectValue placeholder="Select client..." /></SelectTrigger>
-                    <SelectContent>
-                      {customers.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name} — {c.mobile}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label className="form-label">New Client Name *</label>
-                    <Input
-                      value={newClientName}
-                      onChange={e => setNewClientName(e.target.value)}
-                      placeholder="Enter client name"
-                      className="h-11"
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label">New Client Mobile *</label>
-                    <Input
-                      value={newClientMobile}
-                      onChange={e => setNewClientMobile(e.target.value)}
-                      placeholder="Enter mobile number"
-                      className="h-11"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="form-label">Service *</label>
-                <Input
-                  value={form.service}
-                  onChange={e => setForm({ ...form, service: e.target.value })}
-                  placeholder="Enter service name"
-                  className="h-11"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Date *</label>
-                  <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="h-11" />
-                </div>
-                <div>
-                  <label className="form-label">Time *</label>
-                  <Input type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} className="h-11" />
-                </div>
-              </div>
-
-              <div>
-                <label className="form-label">Status</label>
-                <Select value={form.status} onValueChange={(v: "scheduled" | "completed" | "cancelled") => setForm({ ...form, status: v })}>
-                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="form-label">Notes</label>
-                <Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes" className="h-11" />
-              </div>
-
-              <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
-                {editId ? "Update Appointment" : "Add Appointment"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+              resetForm();
+              return;
+            }
+            resetForm();
+            setOpen(true);
+          }}
+          className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6"
+        >
+          <Plus className="h-4 w-4 mr-2" /> {open ? "Close Appointment Form" : "New Appointment"}
+        </Button>
       </div>
+
+      {open && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6 mb-8"
+        >
+          <h2 className="font-display text-3xl mb-5">{editId ? "Edit Appointment" : "New Appointment"}</h2>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="form-label">Client Type *</label>
+              <Select value={clientMode} onValueChange={(value: "existing" | "new") => setClientMode(value)}>
+                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="existing">Existing Client</SelectItem>
+                  <SelectItem value="new">New Client</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {clientMode === "existing" ? (
+              <div>
+                <label className="form-label">Client *</label>
+                <Select value={form.customerId} onValueChange={v => setForm({ ...form, customerId: v })}>
+                  <SelectTrigger className="h-11"><SelectValue placeholder="Select client..." /></SelectTrigger>
+                  <SelectContent>
+                    {customers.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name} — {c.mobile}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="form-label">New Client Name *</label>
+                  <Input
+                    value={newClientName}
+                    onChange={e => setNewClientName(e.target.value)}
+                    placeholder="Enter client name"
+                    className="h-11"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">New Client Mobile *</label>
+                  <Input
+                    value={newClientMobile}
+                    onChange={e => setNewClientMobile(e.target.value)}
+                    placeholder="Enter mobile number"
+                    className="h-11"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="form-label">Service *</label>
+              <Input
+                value={form.service}
+                onChange={e => setForm({ ...form, service: e.target.value })}
+                placeholder="Enter service name"
+                className="h-11"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">Date *</label>
+                <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="h-11" />
+              </div>
+              <div>
+                <label className="form-label">Time *</label>
+                <Input type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} className="h-11" />
+              </div>
+            </div>
+
+            <div>
+              <label className="form-label">Status</label>
+              <Select value={form.status} onValueChange={(v: "scheduled" | "completed" | "cancelled") => setForm({ ...form, status: v })}>
+                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="form-label">Notes</label>
+              <Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes" className="h-11" />
+            </div>
+
+            <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
+              {editId ? "Update Appointment" : "Add Appointment"}
+            </Button>
+          </form>
+        </motion.div>
+      )}
 
       <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">

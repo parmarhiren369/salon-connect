@@ -11,6 +11,8 @@ import { formatDate } from "@/lib/utils";
 import jsPDF from "jspdf";
 import logoImg from "@/assets/logo.png";
 
+const SALON_ADDRESS = "Address: Shop No. 18, Ground Floor, Samanway Westfields, High Tention Road, opp. Raj Path Complex, Bhayli, Vadodara, Gujarat 391410";
+
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash", icon: Banknote },
   { value: "upi", label: "UPI", icon: Smartphone },
@@ -236,6 +238,10 @@ const Billing = () => {
     doc.setFont("helvetica", "normal");
     doc.setTextColor(150, 150, 150);
     doc.text("Thank you for choosing Life Style Studio! ✨", w / 2, y, { align: "center" });
+
+    y += 5;
+    const wrappedAddress = doc.splitTextToSize(SALON_ADDRESS, w - 20);
+    doc.text(wrappedAddress, w / 2, y, { align: "center" });
 
     return doc;
   };

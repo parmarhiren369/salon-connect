@@ -40,10 +40,21 @@ const Dashboard = () => {
     { label: "Ready to Message", value: customers.filter(c => c.mobile).length, icon: MessageSquare, subtitle: "With mobile" },
   ];
 
-  const recentAppointments = [...appointments]
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfWindow = new Date(startOfToday);
+  endOfWindow.setDate(endOfWindow.getDate() + 7);
+  endOfWindow.setHours(23, 59, 59, 999);
+
+  const recentAppointments = appointments
+    .filter((appointment) => {
+      if (appointment.status !== "scheduled") return false;
+      const appointmentDateTime = new Date(`${appointment.date}T${appointment.time || "00:00"}`);
+      return appointmentDateTime >= startOfToday && appointmentDateTime <= endOfWindow;
+    })
     .sort((a, b) => {
-      const first = new Date(`${b.date}T${b.time || "00:00"}`).getTime();
-      const second = new Date(`${a.date}T${a.time || "00:00"}`).getTime();
+      const first = new Date(`${a.date}T${a.time || "00:00"}`).getTime();
+      const second = new Date(`${b.date}T${b.time || "00:00"}`).getTime();
       return first - second;
     });
 
@@ -89,7 +100,7 @@ const Dashboard = () => {
         <div className="p-6 border-b border-border flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-display font-semibold">Recent Appointments</h2>
-            <p className="text-xs text-muted-foreground font-body tracking-wider mt-1">All appointments are listed here</p>
+            <p className="text-xs text-muted-foreground font-body tracking-wider mt-1">Scheduled appointments for the next 7 days</p>
           </div>
           <Calendar className="h-5 w-5 text-accent" />
         </div>
@@ -98,8 +109,8 @@ const Dashboard = () => {
             <div className="avatar-circle mx-auto mb-4 h-16 w-16">
               <Calendar className="h-7 w-7 text-accent-foreground" />
             </div>
-            <p className="font-display text-xl text-foreground mb-1">No appointments yet</p>
-            <p className="font-body text-sm text-muted-foreground">Add your first appointment to get started</p>
+            <p className="font-display text-xl text-foreground mb-1">No upcoming scheduled appointments</p>
+            <p className="font-body text-sm text-muted-foreground">Only scheduled appointments in the next 7 days are shown</p>
           </div>
         ) : (
           <div className="divide-y divide-border">

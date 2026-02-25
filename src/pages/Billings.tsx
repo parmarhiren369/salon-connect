@@ -1,17 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useStore, Billing as BillingType } from "@/store/useStore";
 import { Search, Plus, DollarSign, Calendar, TrendingUp, X, Edit2, Trash2, Send, FileText, CreditCard, Banknote, Smartphone, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatDate } from "@/lib/utils";
 import jsPDF from "jspdf";
 import logoImg from "@/assets/logo.png";
+
+const SALON_ADDRESS = "Address: Shop No. 18, Ground Floor, Samanway Westfields, High Tention Road, opp. Raj Path Complex, Bhayli, Vadodara, Gujarat 391410";
 
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash", icon: Banknote },
@@ -25,26 +24,34 @@ const getPaymentLabel = (method?: string) => {
   return found?.label || "—";
 };
 
+type BillingLineItem = {
+  id: string;
+  serviceId?: string;
+  name: string;
+  price: number;
+  discount: number;
+};
+
+const createLineItem = (seed?: Partial<BillingLineItem>): BillingLineItem => ({
+  id: seed?.id || `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  serviceId: seed?.serviceId,
+  name: seed?.name || "",
+  price: Number(seed?.price) || 0,
+  discount: Number(seed?.discount) || 0,
+});
+
 const Billings = () => {
   const { billings, addBilling, updateBilling, deleteBilling, customers, salonServices } = useStore();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [serviceSearch, setServiceSearch] = useState("");
-  const [servicesOpen, setServicesOpen] = useState(false);
-  const [serviceCategory, setServiceCategory] = useState("");
-  const [manualServiceName, setManualServiceName] = useState("");
-  const [manualServicePrice, setManualServicePrice] = useState("");
-  const [showAdditionalCategoryFlow, setShowAdditionalCategoryFlow] = useState(false);
-  const [additionalCategory, setAdditionalCategory] = useState("");
-  const [additionalServiceId, setAdditionalServiceId] = useState("");
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
     end: new Date().toISOString().split("T")[0]
   });
   const [form, setForm] = useState({
     customerId: "",
-    selectedServices: [] as { id: string; serviceId?: string; name: string; price: number }[],
-    discount: 0,
+    selectedServices: [createLineItem()] as BillingLineItem[],
     date: new Date().toISOString().split("T")[0],
     paymentMethod: "cash" as 'cash' | 'upi' | 'card' | 'bank_transfer' | 'other'
   });
@@ -63,37 +70,35 @@ const Billings = () => {
     return bCreated - aCreated;
   });
 
-  const totalRevenue = filtered.reduce((sum, b) => sum + parseFloat(String(b.amount)), 0);
+  const totalRevenue = filtered.reduce((sum, b) => {
+    const finalAmount = b.finalAmount ?? parseFloat(String(b.amount));
+    return sum + (Number.isFinite(finalAmount) ? finalAmount : 0);
+  }, 0);
 
   const subtotal = form.selectedServices.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
-  const discountAmount = (subtotal * (form.discount || 0)) / 100;
+  const discountAmount = form.selectedServices.reduce((sum, service) => {
+    const servicePrice = Number(service.price) || 0;
+    const serviceDiscount = Number(service.discount) || 0;
+    return sum + (servicePrice * serviceDiscount) / 100;
+  }, 0);
   const totalAmount = subtotal - discountAmount;
 
-  const serviceCategories = useMemo(() => {
-    const categories = salonServices.map(s => s.category).filter(Boolean) as string[];
-    return Array.from(new Set(categories)).sort((a, b) => a.localeCompare(b));
-  }, [salonServices]);
-
-  const servicesByCategory = useMemo(() => {
-    if (!serviceCategory) return [];
-    return salonServices.filter(s => s.category === serviceCategory);
-  }, [salonServices, serviceCategory]);
-
-  const additionalServicesByCategory = useMemo(() => {
-    if (!additionalCategory) return [];
-    return salonServices.filter(s => s.category === additionalCategory);
-  }, [salonServices, additionalCategory]);
-
   const addService = (service: { id: string; name: string; price: number }) => {
-    const lineItem = {
-      id: `${service.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    const lineItem = createLineItem({
       serviceId: service.id,
       name: service.name,
       price: Number(service.price) || 0,
-    };
+    });
     setForm(prev => ({
       ...prev,
       selectedServices: [...prev.selectedServices, lineItem]
+    }));
+  };
+
+  const addEmptyService = () => {
+    setForm(prev => ({
+      ...prev,
+      selectedServices: [...prev.selectedServices, createLineItem()]
     }));
   };
 
@@ -104,34 +109,29 @@ const Billings = () => {
     }));
   };
 
-  const addManualService = () => {
-    const serviceName = manualServiceName.trim();
-    if (!serviceName) {
-      toast.error("Please enter service name");
-      return;
-    }
-    const servicePrice = Number(manualServicePrice) || 0;
-    const lineItem = {
-      id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: serviceName,
-      price: servicePrice,
-    };
+  const updateService = (serviceLineId: string, patch: Partial<BillingLineItem>) => {
     setForm(prev => ({
       ...prev,
-      selectedServices: [...prev.selectedServices, lineItem],
+      selectedServices: prev.selectedServices.map(item => {
+        if (item.id !== serviceLineId) return item;
+        return {
+          ...item,
+          ...patch,
+          price: patch.price !== undefined ? Number(patch.price) || 0 : item.price,
+          discount: patch.discount !== undefined ? Number(patch.discount) || 0 : item.discount,
+        };
+      })
     }));
-    setManualServiceName("");
-    setManualServicePrice("");
+  };
+
+  const getItemSubtotal = (item: BillingLineItem) => {
+    const servicePrice = Number(item.price) || 0;
+    const serviceDiscount = Number(item.discount) || 0;
+    return servicePrice - (servicePrice * serviceDiscount) / 100;
   };
 
   const resetForm = () => {
-    setForm({ customerId: "", selectedServices: [], discount: 0, date: new Date().toISOString().split("T")[0], paymentMethod: "cash" });
-    setServiceCategory("");
-    setManualServiceName("");
-    setManualServicePrice("");
-    setShowAdditionalCategoryFlow(false);
-    setAdditionalCategory("");
-    setAdditionalServiceId("");
+    setForm({ customerId: "", selectedServices: [createLineItem()], date: new Date().toISOString().split("T")[0], paymentMethod: "cash" });
     setEditId(null);
   };
 
@@ -144,32 +144,31 @@ const Billings = () => {
     const selected = serviceNames.map((name, index) => {
       const matchedService = salonServices.find(s => s.name === name);
       if (matchedService) {
-        return {
+        return createLineItem({
           id: `${matchedService.id}-${index}-${Date.now()}`,
           serviceId: matchedService.id,
           name: matchedService.name,
           price: matchedService.price,
-        };
+          discount: b.discount ?? 0,
+        });
       }
-      return {
+      return createLineItem({
         id: `custom-${b.id}-${index}`,
         name,
         price: 0,
-      };
+        discount: b.discount ?? 0,
+      });
     });
     const amountValue = typeof b.amount === "string" ? parseFloat(b.amount) : b.amount;
     const fallbackSelected = selected.length === 0 && b.service
-      ? [{ id: `custom-${b.id}`, name: b.service, price: amountValue || 0 }]
+      ? [createLineItem({ id: `custom-${b.id}`, name: b.service, price: amountValue || 0, discount: b.discount ?? 0 })]
       : selected;
     setForm({
       customerId: b.customerId,
       selectedServices: fallbackSelected,
-      discount: b.discount ?? 0,
       date: b.date,
       paymentMethod: b.paymentMethod || "cash"
     });
-    const firstService = fallbackSelected[0];
-    setServiceCategory(firstService?.serviceId ? salonServices.find(s => s.id === firstService.serviceId)?.category || "" : "");
     setEditId(b.id);
     setOpen(true);
   };
@@ -180,16 +179,23 @@ const Billings = () => {
       toast.error("Please select client and at least one service");
       return;
     }
+
+    const hasInvalidItem = form.selectedServices.some(item => !item.name.trim());
+    if (hasInvalidItem) {
+      toast.error("Each item must have a service name");
+      return;
+    }
     
     const serviceNames = form.selectedServices.map(s => s.name).join(", ");
     const customer = customers.find(c => c.id === form.customerId);
+    const effectiveDiscount = subtotal > 0 ? Number(((discountAmount / subtotal) * 100).toFixed(2)) : 0;
     const payload = {
       customerId: form.customerId,
       customerName: customer?.name || "Unknown",
       service: serviceNames,
       services: form.selectedServices.map(s => s.name),
-      amount: totalAmount,
-      discount: form.discount,
+      amount: subtotal,
+      discount: effectiveDiscount,
       finalAmount: totalAmount,
       date: form.date,
       paymentMethod: form.paymentMethod,
@@ -309,6 +315,10 @@ const Billings = () => {
     doc.setTextColor(150, 150, 150);
     doc.text("Thank you for choosing Life Style Studio!", w / 2, y, { align: "center" });
 
+    y += 5;
+    const wrappedAddress = doc.splitTextToSize(SALON_ADDRESS, w - 20);
+    doc.text(wrappedAddress, w / 2, y, { align: "center" });
+
     return doc;
   };
 
@@ -395,275 +405,152 @@ const Billings = () => {
           <h1 className="page-title">Billings & Services</h1>
           <p className="page-subtitle">Track services and revenue</p>
         </motion.div>
+        <Button
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+              resetForm();
+              return;
+            }
+            resetForm();
+            setOpen(true);
+          }}
+          className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6"
+        >
+          <Plus className="h-4 w-4 mr-2" /> {open ? "Close Billing Form" : "Add Billing"}
+        </Button>
+      </div>
 
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6">
-              <Plus className="h-4 w-4 mr-2" /> Add Billing
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="font-display text-3xl">{editId ? "Edit Billing" : "New Billing"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-5 mt-4">
-              <div>
-                <label className="form-label">Client *</label>
-                <Select value={form.customerId} onValueChange={v => setForm({ ...form, customerId: v })}>
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Select client..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name} — {c.mobile}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="form-label">Service Category</label>
-                <Select value={serviceCategory} onValueChange={v => setServiceCategory(v)}>
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Filter by category..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">All Categories</SelectItem>
-                    {serviceCategories.map(category => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="form-label">Services *</label>
-                <Popover open={servicesOpen} onOpenChange={setServicesOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full h-11 justify-between font-normal"
-                    >
-                      {form.selectedServices.length > 0
-                        ? `${form.selectedServices.length} service(s) selected`
-                        : "Select services..."}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search services..." />
-                      <CommandEmpty>No services found.</CommandEmpty>
-                      {(serviceCategory && serviceCategory !== "__all__" ? serviceCategories.filter(c => c === serviceCategory) : serviceCategories).map(cat => (
-                        <CommandGroup key={cat} heading={cat} className="max-h-64 overflow-auto">
-                          {salonServices.filter(s => s.category === cat).map((service) => {
-                            const selectedCount = form.selectedServices.filter(sel => sel.serviceId === service.id).length;
-                            return (
-                              <CommandItem
-                                key={service.id}
-                                onSelect={() => addService(service)}
-                                className={`cursor-pointer ${selectedCount > 0 ? 'bg-accent/20' : ''}`}
-                              >
-                                <div className="flex items-center justify-between w-full">
-                                  <div className="flex items-center gap-2">
-                                    <div className="h-4 w-4 rounded border border-muted-foreground/30 flex items-center justify-center text-xs font-semibold">+</div>
-                                    <span>{service.name}</span>
-                                  </div>
-                                  <span className="text-sm text-muted-foreground">₹{service.price}{selectedCount > 0 ? ` • ${selectedCount}` : ''}</span>
-                                </div>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      ))}
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6 mb-8"
+        >
+          <h2 className="font-display text-3xl mb-5">{editId ? "Edit Billing" : "New Billing"}</h2>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="form-label">Client *</label>
+              <Select value={form.customerId} onValueChange={v => setForm({ ...form, customerId: v })}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Select client..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name} — {c.mobile}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                <div className="mt-3 space-y-2 rounded-lg border border-border p-3 bg-muted/30">
-                  <label className="form-label">Add service manually</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px_auto] gap-2">
-                    <Input
-                      value={manualServiceName}
-                      onChange={(e) => setManualServiceName(e.target.value)}
-                      placeholder="Enter service name"
-                      className="h-10"
-                    />
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={manualServicePrice}
-                      onChange={(e) => setManualServicePrice(e.target.value)}
-                      placeholder="Price"
-                      className="h-10"
-                    />
-                    <Button type="button" variant="outline" onClick={addManualService} className="h-10">
-                      Add
-                    </Button>
-                  </div>
-                </div>
-                
-                {form.selectedServices.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {form.selectedServices.map((service) => (
-                      <div
-                        key={service.id}
-                        className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border"
-                      >
-                        <span className="text-sm font-medium">{service.name}</span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm text-accent font-semibold">₹{service.price}</span>
-                          {service.serviceId && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const baseService = salonServices.find(s => s.id === service.serviceId);
-                                if (baseService) addService(baseService);
-                              }}
-                              className="h-6 w-6 rounded-full hover:bg-accent/10 flex items-center justify-center text-muted-foreground hover:text-accent transition-colors"
-                              title="Add another"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => removeService(service.id)}
-                            className="h-6 w-6 rounded-full hover:bg-destructive/10 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="form-label">Items *</label>
+                <Button type="button" variant="outline" onClick={addEmptyService} className="h-9">
+                  <Plus className="h-4 w-4 mr-2" /> Add Item
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {form.selectedServices.map((service, index) => (
+                  <div key={service.id} className="rounded-lg border border-border p-3 bg-muted/30 space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-[1.4fr_0.8fr_0.8fr_auto] gap-2 items-end">
+                      <div>
+                        <label className="form-label">Item {index + 1}</label>
+                        <Input
+                          value={service.name}
+                          onChange={(e) => updateService(service.id, { name: e.target.value, serviceId: undefined })}
+                          placeholder="Enter service/item name"
+                          className="h-10"
+                        />
                       </div>
-                    ))}
-                    {!showAdditionalCategoryFlow ? (
+                      <div>
+                        <label className="form-label">Amount (₹)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={service.price}
+                          onChange={(e) => updateService(service.id, { price: Number(e.target.value) || 0 })}
+                          className="h-10"
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label">Discount (%)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={service.discount}
+                          onChange={(e) => updateService(service.id, { discount: Number(e.target.value) || 0 })}
+                          className="h-10"
+                        />
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setShowAdditionalCategoryFlow(true)}
-                        className="w-full h-9"
+                        onClick={() => removeService(service.id)}
+                        className="h-10"
+                        disabled={form.selectedServices.length === 1}
                       >
-                        <Plus className="h-4 w-4 mr-2" /> Add another category
+                        <X className="h-4 w-4" />
                       </Button>
-                    ) : (
-                      <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
-                        <div>
-                          <label className="form-label">Select Category</label>
-                          <Select
-                            value={additionalCategory}
-                            onValueChange={(value) => {
-                              setAdditionalCategory(value);
-                              setAdditionalServiceId("");
-                            }}
-                          >
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Choose category..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {serviceCategories.map(category => (
-                                <SelectItem key={category} value={category}>{category}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                    </div>
 
-                        <div>
-                          <label className="form-label">Select Service</label>
-                          <Select
-                            value={additionalServiceId}
-                            onValueChange={setAdditionalServiceId}
-                            disabled={!additionalCategory}
-                          >
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder={additionalCategory ? "Choose service..." : "Select category first"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {additionalServicesByCategory.map(service => (
-                                <SelectItem key={service.id} value={service.id}>
-                                  {service.name} — ₹{service.price}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {[0, 5, 10, 15, 20, 25].map(percent => (
+                        <Button
+                          key={`${service.id}-${percent}`}
+                          type="button"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => updateService(service.id, { discount: percent })}
+                        >
+                          {percent}%
+                        </Button>
+                      ))}
+                    </div>
 
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            className="flex-1"
-                            disabled={!additionalServiceId}
-                            onClick={() => {
-                              const selectedService = salonServices.find(s => s.id === additionalServiceId);
-                              if (!selectedService) return;
-                              addService(selectedService);
-                              setShowAdditionalCategoryFlow(false);
-                              setAdditionalCategory("");
-                              setAdditionalServiceId("");
-                            }}
-                          >
-                            Add Service
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setShowAdditionalCategoryFlow(false);
-                              setAdditionalCategory("");
-                              setAdditionalServiceId("");
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    <div className="space-y-2 pt-2 border-t border-border">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Subtotal:</span>
-                        <span className="text-sm font-medium">₹{subtotal.toFixed(2)}</span>
-                      </div>
-                      {form.discount > 0 && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Discount ({form.discount}%):</span>
-                          <span className="text-sm font-medium text-destructive">-₹{discountAmount.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between pt-2 border-t border-border">
-                        <span className="font-semibold">Final Amount:</span>
-                        <span className="text-lg font-bold text-accent">₹{totalAmount.toFixed(2)}</span>
-                      </div>
+                    <div className="flex items-center justify-between border-t border-border pt-2">
+                      <span className="text-sm text-muted-foreground">Item subtotal</span>
+                      <span className="text-sm font-semibold text-accent">₹{getItemSubtotal(service).toFixed(2)}</span>
                     </div>
                   </div>
-                )}
+                ))}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Discount (%)</label>
-                  <Input
-                    type="number"
-                    value={form.discount}
-                    onChange={e => setForm({ ...form, discount: parseFloat(e.target.value) || 0 })}
-                    placeholder="0"
-                    className="h-11"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Payment Method</label>
-                  <Select value={form.paymentMethod} onValueChange={(v: 'cash' | 'upi' | 'card' | 'bank_transfer' | 'other') => setForm({ ...form, paymentMethod: v })}>
-                    <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map(m => (
-                        <SelectItem key={m.value} value={m.value}>
-                          <span className="flex items-center gap-2">
-                            <m.icon className="h-3.5 w-3.5" /> {m.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            </div>
+
+            <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Subtotal</span>
+                <span className="text-sm font-medium">₹{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Item Discounts</span>
+                <span className="text-sm font-medium text-destructive">-₹{discountAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-2">
+                <span className="font-semibold">Final Amount</span>
+                <span className="text-lg font-bold text-accent">₹{totalAmount.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">Payment Method</label>
+                <Select value={form.paymentMethod} onValueChange={(v: 'cash' | 'upi' | 'card' | 'bank_transfer' | 'other') => setForm({ ...form, paymentMethod: v })}>
+                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map(m => (
+                      <SelectItem key={m.value} value={m.value}>
+                        <span className="flex items-center gap-2">
+                          <m.icon className="h-3.5 w-3.5" /> {m.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="form-label">Date *</label>
@@ -674,13 +561,14 @@ const Billings = () => {
                   className="h-11"
                 />
               </div>
-              <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
-                {editId ? "Update Billing" : "Add Billing"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </div>
+
+            <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
+              {editId ? "Update Billing" : "Add Billing"}
+            </Button>
+          </form>
+        </motion.div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
@@ -812,7 +700,7 @@ const Billings = () => {
                         {getPaymentLabel(b.paymentMethod)}
                       </span>
                     </td>
-                    <td className="p-4 font-body text-sm font-semibold text-right">₹{parseFloat(String(b.amount)).toFixed(2)}</td>
+                    <td className="p-4 font-body text-sm font-semibold text-right">₹{(b.finalAmount ?? parseFloat(String(b.amount))).toFixed(2)}</td>
                     <td className="p-4">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => downloadPDF(b)}
