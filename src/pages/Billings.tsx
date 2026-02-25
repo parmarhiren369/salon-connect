@@ -223,7 +223,7 @@ const Billings = () => {
     const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
     const finalAmt = b.finalAmount ?? amt;
 
-    try { doc.addImage(logoImg, "PNG", 10, 8, 18, 18); } catch { /* skip */ }
+    try { doc.addImage(logoImg, "PNG", 10, 7, 22, 22); } catch { /* skip */ }
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
@@ -234,9 +234,14 @@ const Billings = () => {
     doc.setTextColor(120, 120, 120);
     doc.text("Beauty & Wellness", 32, 22);
 
+    const headerAddress = doc.splitTextToSize(SALON_ADDRESS, w - 74);
+    doc.setFontSize(6.5);
+    doc.setTextColor(130, 130, 130);
+    doc.text(headerAddress, 32, 26);
+
     doc.setDrawColor(191, 155, 48);
     doc.setLineWidth(0.8);
-    doc.line(10, 30, w - 10, 30);
+    doc.line(10, 38, w - 10, 38);
 
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
@@ -247,7 +252,7 @@ const Billings = () => {
     doc.setTextColor(120, 120, 120);
     doc.text(`Date: ${formatDate(b.date)}`, w - 10, 22, { align: "right" });
 
-    let y = 38;
+    let y = 46;
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(60, 60, 60);
@@ -314,10 +319,6 @@ const Billings = () => {
     doc.setFont("helvetica", "normal");
     doc.setTextColor(150, 150, 150);
     doc.text("Thank you for choosing Life Style Studio!", w / 2, y, { align: "center" });
-
-    y += 5;
-    const wrappedAddress = doc.splitTextToSize(SALON_ADDRESS, w - 20);
-    doc.text(wrappedAddress, w / 2, y, { align: "center" });
 
     return doc;
   };
