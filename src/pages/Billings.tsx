@@ -297,7 +297,8 @@ const Billings = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
-    doc.text(`Ph: ${SALON_PHONE}`, 10, 33);
+    const phoneY = 26 + (headerAddress.length * 3) + 2;
+    doc.text(`Ph: ${SALON_PHONE}`, 32, phoneY);
 
     doc.setDrawColor(191, 155, 48);
     doc.setLineWidth(0.8);
