@@ -345,11 +345,10 @@ const Billings = () => {
       y += 5;
 
       const itemDiscountAmount = Math.max(0, item.amount - item.finalAmount);
-      doc.setFontSize(7);
-      doc.setTextColor(191, 155, 48);
-      doc.text(`Discount (${item.discount.toLocaleString("en-IN")}%)`, 15, y);
-      doc.text(`-Rs.${itemDiscountAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
       doc.setFontSize(8);
+      doc.setTextColor(191, 155, 48);
+      doc.text(`Discount (${item.discount.toLocaleString("en-IN")}%)`, 12, y);
+      doc.text(`-Rs.${itemDiscountAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
       doc.setTextColor(50, 50, 50);
       y += 6;
     });
