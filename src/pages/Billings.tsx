@@ -395,18 +395,12 @@ const Billings = () => {
           };
         });
 
-    const lineItems = items.map(item => `• ${item.name} (₹${item.finalAmount.toLocaleString("en-IN")})`).join("\n");
-    const subtotalAmount = items.reduce((sum, item) => sum + item.amount, 0);
-    const discountAmountValue = items.reduce((sum, item) => sum + (item.amount - item.finalAmount), 0);
+    const lineItems = items.map(item => `• ${item.name}: ₹${item.finalAmount.toLocaleString("en-IN")}`).join("\n");
     const finalAmt = b.finalAmount ?? items.reduce((sum, item) => sum + item.finalAmount, 0);
-    const discountValue = subtotalAmount > 0 ? Number(((discountAmountValue / subtotalAmount) * 100).toFixed(2)) : 0;
 
     return {
       customerName: customer?.name || b.customerName || "Customer",
       total: finalAmt,
-      subtotal: subtotalAmount,
-      discountValue,
-      discountAmount: discountAmountValue,
       payment: getPaymentLabel(b.paymentMethod),
       lineItems,
       date: formatDate(b.date),
@@ -426,10 +420,7 @@ const Billings = () => {
     const phone = customer.mobile.replace(/[^0-9]/g, "");
 
     const summary = buildBillingSummary(b);
-    const discountLine = summary.discountValue > 0
-      ? `Discount (${summary.discountValue}%): -₹${summary.discountAmount.toLocaleString("en-IN")}`
-      : "Discount: —";
-    const msg = `Hi ${summary.customerName}! 🧾\n\nYour bill from Life Style Studio:\n\nServices:\n${summary.lineItems || "• Service"}\n\nSubtotal: ₹${summary.subtotal.toLocaleString("en-IN")}\n${discountLine}\nTotal: ₹${summary.total.toLocaleString("en-IN")}\nPayment: ${summary.payment}\nDate: ${summary.date}\n\nThank you for choosing Life Style Studio! 💫`;
+    const msg = `Hi ${summary.customerName}! 🧾\n\nYour bill from Life Style Studio:\n\nItems:\n${summary.lineItems || "• Service"}\n\nTotal: ₹${summary.total.toLocaleString("en-IN")}\nPayment: ${summary.payment}\nDate: ${summary.date}\n\nThank you for choosing Life Style Studio! 💫`;
     
     // Detect if mobile device
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
