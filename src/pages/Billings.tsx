@@ -333,7 +333,6 @@ const Billings = () => {
     doc.setFontSize(8);
     doc.setTextColor(80, 80, 80);
     doc.text("Service", 12, y + 5);
-    doc.text("Disc.", w - 42, y + 5, { align: "right" });
     doc.text("Amount", w - 12, y + 5, { align: "right" });
     y += 10;
 
@@ -341,8 +340,16 @@ const Billings = () => {
     doc.setTextColor(50, 50, 50);
     invoiceItems.forEach((item) => {
       doc.text(item.name, 12, y);
-      doc.text(`${item.discount.toLocaleString("en-IN")}%`, w - 42, y, { align: "right" });
-      doc.text(`Rs.${item.finalAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+      doc.text(`Rs.${item.amount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+      y += 5;
+
+      const itemDiscountAmount = Math.max(0, item.amount - item.finalAmount);
+      doc.setFontSize(7);
+      doc.setTextColor(191, 155, 48);
+      doc.text(`Discount (${item.discount.toLocaleString("en-IN")}%)`, 15, y);
+      doc.text(`-Rs.${itemDiscountAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+      doc.setFontSize(8);
+      doc.setTextColor(50, 50, 50);
       y += 6;
     });
 
