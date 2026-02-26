@@ -275,8 +275,6 @@ const Billings = () => {
           };
         });
 
-    const subtotalAmount = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
-    const discountTotal = invoiceItems.reduce((sum, item) => sum + (item.amount - item.finalAmount), 0);
     const finalAmt = b.finalAmount ?? invoiceItems.reduce((sum, item) => sum + item.finalAmount, 0);
 
     try { doc.addImage(logoImg, "PNG", 10, 7, 22, 22); } catch { /* skip */ }
@@ -341,15 +339,7 @@ const Billings = () => {
     doc.setTextColor(50, 50, 50);
     invoiceItems.forEach((item) => {
       doc.text(item.name, 12, y);
-      doc.text(`Rs.${item.amount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
-      y += 5;
-
-      const itemDiscountAmount = Math.max(0, item.amount - item.finalAmount);
-      doc.setFontSize(8);
-      doc.setTextColor(191, 155, 48);
-      doc.text(`Discount (${item.discount.toLocaleString("en-IN")}%)`, 12, y);
-      doc.text(`-Rs.${itemDiscountAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
-      doc.setTextColor(50, 50, 50);
+      doc.text(`Rs.${item.finalAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
       y += 6;
     });
 
@@ -357,17 +347,7 @@ const Billings = () => {
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.3);
     doc.line(10, y, w - 10, y);
-    y += 6;
-
-    doc.setFontSize(9);
-    doc.text("Subtotal", 12, y);
-    doc.text(`Rs.${subtotalAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
-    y += 6;
-
-    doc.setTextColor(191, 155, 48);
-    doc.text("Discount", 12, y);
-    doc.text(`-Rs.${discountTotal.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
-    y += 6;
+    y += 7;
 
     doc.setDrawColor(191, 155, 48);
     doc.setLineWidth(0.8);
