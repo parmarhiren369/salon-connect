@@ -58,6 +58,12 @@ export interface Billing {
   customerName?: string;
   service: string;
   services?: string[];
+  lineItems?: {
+    name: string;
+    amount: number;
+    discount?: number;
+    finalAmount?: number;
+  }[];
   amount: string | number;
   discount?: number;
   finalAmount?: number;

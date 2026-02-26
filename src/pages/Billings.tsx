@@ -139,31 +139,50 @@ const Billings = () => {
   const startEdit = (billingId: string) => {
     const b = billings.find(x => x.id === billingId);
     if (!b) return;
-    const serviceNames = b.service
-      ? b.service.split(",").map(name => name.trim()).filter(Boolean)
-      : [];
-    const selected = serviceNames.map((name, index) => {
-      const matchedService = salonServices.find(s => s.name === name);
-      if (matchedService) {
+    const amountValue = typeof b.amount === "string" ? parseFloat(b.amount) : b.amount;
+    const savedLineItems = (b.lineItems || [])
+      .filter(item => item && item.name)
+      .map((item, index) => createLineItem({
+        id: `stored-${b.id}-${index}`,
+        name: item.name,
+        price: Number(item.amount) || 0,
+        discount: Number(item.discount) || 0,
+      }));
+
+    let fallbackSelected = savedLineItems;
+
+    if (fallbackSelected.length === 0) {
+      const serviceNames = b.service
+        ? b.service.split(",").map(name => name.trim()).filter(Boolean)
+        : [];
+      const equallySplitAmount = serviceNames.length > 0
+        ? (Number(amountValue) || 0) / serviceNames.length
+        : Number(amountValue) || 0;
+
+      fallbackSelected = serviceNames.map((name, index) => {
+        const matchedService = salonServices.find(s => s.name === name);
+        if (matchedService) {
+          return createLineItem({
+            id: `${matchedService.id}-${index}-${Date.now()}`,
+            serviceId: matchedService.id,
+            name: matchedService.name,
+            price: matchedService.price,
+            discount: b.discount ?? 0,
+          });
+        }
         return createLineItem({
-          id: `${matchedService.id}-${index}-${Date.now()}`,
-          serviceId: matchedService.id,
-          name: matchedService.name,
-          price: matchedService.price,
+          id: `custom-${b.id}-${index}`,
+          name,
+          price: equallySplitAmount,
           discount: b.discount ?? 0,
         });
-      }
-      return createLineItem({
-        id: `custom-${b.id}-${index}`,
-        name,
-        price: 0,
-        discount: b.discount ?? 0,
       });
-    });
-    const amountValue = typeof b.amount === "string" ? parseFloat(b.amount) : b.amount;
-    const fallbackSelected = selected.length === 0 && b.service
-      ? [createLineItem({ id: `custom-${b.id}`, name: b.service, price: amountValue || 0, discount: b.discount ?? 0 })]
-      : selected;
+    }
+
+    if (fallbackSelected.length === 0) {
+      fallbackSelected = [createLineItem({ id: `custom-${b.id}`, name: b.service || "", price: Number(amountValue) || 0, discount: b.discount ?? 0 })];
+    }
+
     setForm({
       customerId: b.customerId,
       selectedServices: fallbackSelected,
@@ -190,11 +209,18 @@ const Billings = () => {
     const serviceNames = form.selectedServices.map(s => s.name).join(", ");
     const customer = customers.find(c => c.id === form.customerId);
     const effectiveDiscount = subtotal > 0 ? Number(((discountAmount / subtotal) * 100).toFixed(2)) : 0;
+    const lineItems = form.selectedServices.map(item => ({
+      name: item.name.trim(),
+      amount: Number(item.price) || 0,
+      discount: Number(item.discount) || 0,
+      finalAmount: getItemSubtotal(item),
+    }));
     const payload = {
       customerId: form.customerId,
       customerName: customer?.name || "Unknown",
       service: serviceNames,
       services: form.selectedServices.map(s => s.name),
+      lineItems,
       amount: subtotal,
       discount: effectiveDiscount,
       finalAmount: totalAmount,
@@ -222,7 +248,36 @@ const Billings = () => {
     const w = doc.internal.pageSize.getWidth();
     const customer = customers.find(c => c.id === b.customerId);
     const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
-    const finalAmt = b.finalAmount ?? amt;
+    const savedLineItems = (b.lineItems || []).filter(item => item && item.name);
+    const fallbackServices = (b.services && b.services.length > 0) ? b.services : (b.service ? b.service.split(", ") : ["Service"]);
+    const fallbackAmountPerService = fallbackServices.length > 0 ? (Number(amt) || 0) / fallbackServices.length : Number(amt) || 0;
+
+    const invoiceItems = savedLineItems.length > 0
+      ? savedLineItems.map(item => {
+          const itemAmount = Number(item.amount) || 0;
+          const itemDiscount = Number(item.discount) || 0;
+          const calculatedFinal = itemAmount - (itemAmount * itemDiscount) / 100;
+          return {
+            name: item.name,
+            amount: itemAmount,
+            discount: itemDiscount,
+            finalAmount: Number(item.finalAmount ?? calculatedFinal),
+          };
+        })
+      : fallbackServices.map(serviceName => {
+          const svc = salonServices.find(sv => sv.name === serviceName);
+          const itemAmount = svc ? Number(svc.price) || 0 : fallbackAmountPerService;
+          return {
+            name: serviceName,
+            amount: itemAmount,
+            discount: Number(b.discount) || 0,
+            finalAmount: itemAmount - (itemAmount * (Number(b.discount) || 0)) / 100,
+          };
+        });
+
+    const subtotalAmount = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+    const discountTotal = invoiceItems.reduce((sum, item) => sum + (item.amount - item.finalAmount), 0);
+    const finalAmt = b.finalAmount ?? invoiceItems.reduce((sum, item) => sum + item.finalAmount, 0);
 
     try { doc.addImage(logoImg, "PNG", 10, 7, 22, 22); } catch { /* skip */ }
 
@@ -283,11 +338,9 @@ const Billings = () => {
 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(50, 50, 50);
-    const services = (b.services && b.services.length > 0) ? b.services : (b.service ? b.service.split(", ") : ["Service"]);
-    services.forEach(s => {
-      const svc = salonServices.find(sv => sv.name === s);
-      doc.text(s, 12, y);
-      doc.text(svc ? `Rs.${svc.price.toLocaleString("en-IN")}` : "—", w - 12, y, { align: "right" });
+    invoiceItems.forEach((item) => {
+      doc.text(item.name, 12, y);
+      doc.text(`Rs.${item.finalAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
       y += 6;
     });
 
@@ -299,13 +352,13 @@ const Billings = () => {
 
     doc.setFontSize(9);
     doc.text("Subtotal", 12, y);
-    doc.text(`Rs.${amt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+    doc.text(`Rs.${subtotalAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
     y += 6;
 
-    if ((b.discount ?? 0) > 0) {
+    if (discountTotal > 0) {
       doc.setTextColor(191, 155, 48);
-      doc.text(`Discount (${b.discount}%)`, 12, y);
-      doc.text(`-Rs.${Math.round(amt * (b.discount ?? 0) / 100).toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+      doc.text("Discount", 12, y);
+      doc.text(`-Rs.${discountTotal.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
       y += 6;
     }
 
@@ -331,20 +384,40 @@ const Billings = () => {
   const buildBillingSummary = (b: BillingType) => {
     const customer = customers.find(c => c.id === b.customerId);
     const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
-    const finalAmt = b.finalAmount ?? amt;
-    const services = (b.services && b.services.length > 0) ? b.services : (b.service ? b.service.split(", ") : []);
-    const lineItems = services.map((serviceName) => {
-      const svc = salonServices.find(s => s.name === serviceName);
-      const price = svc ? `₹${svc.price.toLocaleString("en-IN")}` : "—";
-      return `• ${serviceName} (${price})`;
-    }).join("\n");
-    const discountValue = b.discount ?? 0;
-    const discountAmountValue = discountValue > 0 ? Math.round(amt * discountValue / 100) : 0;
+    const savedLineItems = (b.lineItems || []).filter(item => item && item.name);
+    const fallbackServices = (b.services && b.services.length > 0) ? b.services : (b.service ? b.service.split(", ") : []);
+    const fallbackAmountPerService = fallbackServices.length > 0 ? (Number(amt) || 0) / fallbackServices.length : Number(amt) || 0;
+    const items = savedLineItems.length > 0
+      ? savedLineItems.map(item => {
+          const itemAmount = Number(item.amount) || 0;
+          const itemDiscount = Number(item.discount) || 0;
+          const calculatedFinal = itemAmount - (itemAmount * itemDiscount) / 100;
+          return {
+            name: item.name,
+            amount: itemAmount,
+            finalAmount: Number(item.finalAmount ?? calculatedFinal),
+          };
+        })
+      : fallbackServices.map(serviceName => {
+          const svc = salonServices.find(s => s.name === serviceName);
+          const itemAmount = svc ? Number(svc.price) || 0 : fallbackAmountPerService;
+          return {
+            name: serviceName,
+            amount: itemAmount,
+            finalAmount: itemAmount - (itemAmount * (Number(b.discount) || 0)) / 100,
+          };
+        });
+
+    const lineItems = items.map(item => `• ${item.name} (₹${item.finalAmount.toLocaleString("en-IN")})`).join("\n");
+    const subtotalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+    const discountAmountValue = items.reduce((sum, item) => sum + (item.amount - item.finalAmount), 0);
+    const finalAmt = b.finalAmount ?? items.reduce((sum, item) => sum + item.finalAmount, 0);
+    const discountValue = subtotalAmount > 0 ? Number(((discountAmountValue / subtotalAmount) * 100).toFixed(2)) : 0;
 
     return {
       customerName: customer?.name || b.customerName || "Customer",
       total: finalAmt,
-      subtotal: amt,
+      subtotal: subtotalAmount,
       discountValue,
       discountAmount: discountAmountValue,
       payment: getPaymentLabel(b.paymentMethod),
