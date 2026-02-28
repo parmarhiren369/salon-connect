@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore, Membership } from "@/store/useStore";
-import { Plus, Trash2, Crown, Calendar as CalendarIcon, Edit2, CheckCircle2, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Crown, Calendar as CalendarIcon, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -21,11 +21,7 @@ const Memberships = () => {
     deleteMembershipPlan,
     updateMembershipPlan
   } = useStore();
-  const [open, setOpen] = useState(false);
-  const [planOpen, setPlanOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [planEditId, setPlanEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({
+  const getInitialForm = () => ({
     customerId: "",
     planId: "",
     plan: "",
@@ -37,6 +33,11 @@ const Memberships = () => {
     totalBenefits: "",
     usedBenefits: "0"
   });
+  const [showForm, setShowForm] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [planEditId, setPlanEditId] = useState<string | null>(null);
+  const [form, setForm] = useState(getInitialForm());
   const [planForm, setPlanForm] = useState({ name: "", price: "", totalBenefits: "" });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -65,9 +66,9 @@ const Memberships = () => {
       addMembership(data);
       toast.success("Membership added");
     }
-    setForm({ customerId: "", planId: "", plan: "", startDate: new Date().toISOString().split("T")[0], endDate: "", amount: "", advanceAmount: "", offerDetails: "", totalBenefits: "", usedBenefits: "0" });
+    setForm(getInitialForm());
     setEditId(null);
-    setOpen(false);
+    setShowForm(false);
   };
 
   const handlePlanSubmit = (e: React.FormEvent) => {
@@ -104,7 +105,7 @@ const Memberships = () => {
       usedBenefits: (m.usedBenefits ?? 0).toString(),
     });
     setEditId(m.id);
-    setOpen(true);
+    setShowForm(true);
   };
 
   const handlePlanSelect = (planId: string) => {
@@ -133,85 +134,93 @@ const Memberships = () => {
           <h1 className="page-title">Memberships</h1>
           <p className="page-subtitle">{memberships.length} total memberships</p>
         </motion.div>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); } }}>
-          <DialogTrigger asChild>
-            <Button className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6">
-              <Plus className="h-4 w-4 mr-2" /> Add Membership
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="font-display text-3xl">{editId ? "Edit Membership" : "New Membership"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-5 mt-4">
+        <Button
+          className="gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-6"
+          onClick={() => {
+            setEditId(null);
+            setForm(getInitialForm());
+            setShowForm(true);
+          }}
+        >
+          <Plus className="h-4 w-4 mr-2" /> Add Membership
+        </Button>
+      </div>
+
+      {showForm && (
+        <div className="glass-card p-6 mb-8">
+          <h2 className="font-display text-3xl mb-5">{editId ? "Edit Membership" : "New Membership"}</h2>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="form-label">Customer *</label>
+              <Select value={form.customerId} onValueChange={v => setForm({ ...form, customerId: v })}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Select customer..." /></SelectTrigger>
+                <SelectContent>
+                  {customers.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="form-label">Plan *</label>
+              <Select value={form.planId} onValueChange={handlePlanSelect}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Select plan..." /></SelectTrigger>
+                <SelectContent>
+                  {membershipPlans.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {membershipPlans.length === 0 && (
+                <p className="text-xs text-muted-foreground font-body mt-1">Create a plan first to assign memberships.</p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="form-label">Customer *</label>
-                <Select value={form.customerId} onValueChange={v => setForm({ ...form, customerId: v })}>
-                  <SelectTrigger className="h-11"><SelectValue placeholder="Select customer..." /></SelectTrigger>
-                  <SelectContent>
-                    {customers.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="form-label">Plan *</label>
-                <Select value={form.planId} onValueChange={handlePlanSelect}>
-                  <SelectTrigger className="h-11"><SelectValue placeholder="Select plan..." /></SelectTrigger>
-                  <SelectContent>
-                    {membershipPlans.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name} — ₹{p.price}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {membershipPlans.length === 0 && (
-                  <p className="text-xs text-muted-foreground font-body mt-1">Create a plan first to assign memberships.</p>
-                )}
-              </div>
-              <div>
-                <label className="form-label">Plan Name *</label>
-                <Input value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value })} placeholder="Gold, Platinum..." className="h-11" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Start Date</label>
-                  <Input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="h-11" />
-                </div>
-                <div>
-                  <label className="form-label">End Date *</label>
-                  <Input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="h-11" />
-                </div>
+                <label className="form-label">Start Date</label>
+                <Input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="h-11" />
               </div>
               <div>
-                <label className="form-label">Amount (₹) *</label>
-                <Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="5000" className="h-11" />
+                <label className="form-label">End Date *</label>
+                <Input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="h-11" />
               </div>
-              <div>
-                <label className="form-label">Advance Received (₹)</label>
-                <Input type="number" value={form.advanceAmount} onChange={e => setForm({ ...form, advanceAmount: e.target.value })} placeholder="2000" className="h-11" />
-              </div>
-              <div>
-                <label className="form-label">Offer Details</label>
-                <Input value={form.offerDetails} onChange={e => setForm({ ...form, offerDetails: e.target.value })} placeholder="Example: 12 facials on discounted price" className="h-11" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Total Benefits *</label>
-                  <Input type="number" value={form.totalBenefits} onChange={e => setForm({ ...form, totalBenefits: e.target.value })} placeholder="10" className="h-11" min="0" />
-                </div>
-                <div>
-                  <label className="form-label">Used Benefits</label>
-                  <Input type="number" value={form.usedBenefits} onChange={e => setForm({ ...form, usedBenefits: e.target.value })} placeholder="0" className="h-11" min="0" />
-                </div>
-              </div>
-              <Button type="submit" className="w-full h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20">
+            </div>
+            <div>
+              <label className="form-label">Amount (₹) *</label>
+              <Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="5000" className="h-11" />
+            </div>
+            <div>
+              <label className="form-label">Advance Received (₹)</label>
+              <Input type="number" value={form.advanceAmount} onChange={e => setForm({ ...form, advanceAmount: e.target.value })} placeholder="2000" className="h-11" />
+            </div>
+            <div>
+              <label className="form-label">Offer Details</label>
+              <Input value={form.offerDetails} onChange={e => setForm({ ...form, offerDetails: e.target.value })} placeholder="Example: 12 facials on discounted price" className="h-11" />
+            </div>
+            <div>
+              <label className="form-label">Total Benefits *</label>
+              <Input type="number" value={form.totalBenefits} onChange={e => setForm({ ...form, totalBenefits: e.target.value })} placeholder="10" className="h-11" min="0" />
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <Button type="submit" className="h-12 gold-gradient text-accent-foreground hover:opacity-90 font-body tracking-wider text-sm shadow-lg shadow-accent/20 px-8">
                 {editId ? "Update Membership" : "Add Membership"}
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12"
+                onClick={() => {
+                  setEditId(null);
+                  setForm(getInitialForm());
+                  setShowForm(false);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Membership Plans */}
       <div className="glass-card p-6 mb-8">
@@ -329,14 +338,6 @@ const Memberships = () => {
                         <button onClick={() => startEditMembership(m)}
                           className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-foreground transition-colors">
                           <Edit2 className="h-3.5 w-3.5" /> Edit
-                        </button>
-                        <button onClick={() => updateMembership(m.id, { usedBenefits: Math.min((m.totalBenefits ?? 0), (m.usedBenefits ?? 0) + 1) })}
-                          className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-foreground transition-colors">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Use Benefit
-                        </button>
-                        <button onClick={() => updateMembership(m.id, { usedBenefits: Math.max(0, (m.usedBenefits ?? 0) - 1) })}
-                          className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-foreground transition-colors">
-                          <RotateCcw className="h-3.5 w-3.5" /> Undo
                         </button>
                         <button onClick={() => { deleteMembership(m.id); toast.success("Membership removed"); }}
                           className="flex items-center gap-1.5 text-xs font-body text-muted-foreground hover:text-destructive transition-colors">
