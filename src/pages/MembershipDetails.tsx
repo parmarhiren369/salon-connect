@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, CheckCircle2, RotateCcw } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 
@@ -33,7 +34,11 @@ const buildMonthlyRows = (startDate: string, totalBenefits: number, existingRows
 const MembershipDetails = () => {
   const navigate = useNavigate();
   const { customerId } = useParams();
-  const { customers, memberships, updateMembership } = useStore();
+  const { customers, memberships, updateMembership, addAppointment } = useStore();
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
+  const [nextVisitDate, setNextVisitDate] = useState(new Date().toISOString().split("T")[0]);
+  const [nextVisitTime, setNextVisitTime] = useState("10:00");
 
   const customer = customers.find(c => c.id === customerId);
 
@@ -58,6 +63,37 @@ const MembershipDetails = () => {
       monthlyUsage: nextRows,
       usedBenefits,
     });
+  };
+
+  const openScheduleDialog = (monthKey: string) => {
+    setSelectedRowKey(monthKey);
+    setNextVisitDate(new Date().toISOString().split("T")[0]);
+    setNextVisitTime("10:00");
+    setScheduleOpen(true);
+  };
+
+  const handleConfirmTaken = () => {
+    if (!membership || !customer || !selectedRowKey) return;
+    if (!nextVisitDate || !nextVisitTime) {
+      toast.error("Next visit date and time are required");
+      return;
+    }
+
+    updateRow(selectedRowKey, { serviceTaken: true, usedDate: new Date().toISOString().split("T")[0] });
+
+    addAppointment({
+      customerId: customer.id,
+      customerName: customer.name,
+      date: nextVisitDate,
+      time: nextVisitTime,
+      service: membership.offerDetails || membership.plan,
+      notes: `Next membership benefit for ${membership.plan}`,
+      status: "scheduled",
+    });
+
+    toast.success("Benefit marked as taken and next appointment added");
+    setScheduleOpen(false);
+    setSelectedRowKey(null);
   };
 
   if (!membership || !customer) {
@@ -141,24 +177,13 @@ const MembershipDetails = () => {
                       <div className="flex items-center justify-end gap-2">
                         {!row.serviceTaken ? (
                           <button
-                            onClick={() => {
-                              updateRow(row.monthKey, { serviceTaken: true, usedDate: new Date().toISOString().split("T")[0] });
-                              toast.success("Marked as taken");
-                            }}
+                            onClick={() => openScheduleDialog(row.monthKey)}
                             className="px-3 py-1.5 rounded-lg text-xs font-body bg-accent/10 text-accent hover:bg-accent/20 transition-colors flex items-center gap-1"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" /> Mark Taken
                           </button>
                         ) : (
-                          <button
-                            onClick={() => {
-                              updateRow(row.monthKey, { serviceTaken: false, usedDate: undefined });
-                              toast.success("Marked as not taken");
-                            }}
-                            className="px-3 py-1.5 rounded-lg text-xs font-body bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" /> Undo
-                          </button>
+                          <span className="px-3 py-1.5 rounded-lg text-xs font-body bg-muted text-muted-foreground">Completed</span>
                         )}
                       </div>
                     </td>
@@ -169,6 +194,30 @@ const MembershipDetails = () => {
           </table>
         </div>
       </div>
+
+      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-3xl">Next Visit Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <label className="form-label">Next Visit Date *</label>
+              <Input type="date" value={nextVisitDate} onChange={(e) => setNextVisitDate(e.target.value)} className="h-11" />
+            </div>
+            <div>
+              <label className="form-label">Next Visit Time *</label>
+              <Input type="time" value={nextVisitTime} onChange={(e) => setNextVisitTime(e.target.value)} className="h-11" />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" onClick={() => setScheduleOpen(false)}>Cancel</Button>
+            <Button type="button" className="gold-gradient text-accent-foreground hover:opacity-90" onClick={handleConfirmTaken}>
+              Save & Mark Taken
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
