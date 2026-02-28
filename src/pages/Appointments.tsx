@@ -12,6 +12,7 @@ const Appointments = () => {
   const { appointments, customers, addAppointment, updateAppointment, deleteAppointment, addCustomer } = useStore();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [newClientName, setNewClientName] = useState("");
   const [newClientMobile, setNewClientMobile] = useState("");
@@ -31,6 +32,25 @@ const Appointments = () => {
       return first - second;
     });
   }, [appointments]);
+
+  const filteredAppointments = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return sortedAppointments;
+
+    return sortedAppointments.filter((appointment) => {
+      const customerName = appointment.customerName || customers.find(c => c.id === appointment.customerId)?.name || "Unknown";
+      const haystack = [
+        customerName,
+        appointment.service,
+        appointment.notes || "",
+        appointment.date,
+        appointment.time || "",
+        appointment.status,
+      ].join(" ").toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [sortedAppointments, searchTerm, customers]);
 
   const resetForm = () => {
     setClientMode("existing");
@@ -245,6 +265,15 @@ const Appointments = () => {
         </motion.div>
       )}
 
+      <div className="glass-card p-4 mb-6">
+        <Input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search by client name, service, date, status..."
+          className="h-11"
+        />
+      </div>
+
       <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -259,7 +288,7 @@ const Appointments = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedAppointments.length === 0 ? (
+              {filteredAppointments.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-12 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -267,12 +296,14 @@ const Appointments = () => {
                         <CalendarDays className="h-8 w-8 text-accent" />
                       </div>
                       <p className="font-display text-xl text-foreground">No appointments found</p>
-                      <p className="text-sm text-muted-foreground">Create your first appointment</p>
+                      <p className="text-sm text-muted-foreground">
+                        {searchTerm.trim() ? "No appointments match your search" : "Create your first appointment"}
+                      </p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                sortedAppointments.map((appointment, index) => (
+                filteredAppointments.map((appointment, index) => (
                   <motion.tr
                     key={appointment.id}
                     initial={{ opacity: 0, y: 10 }}

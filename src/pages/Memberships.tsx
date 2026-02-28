@@ -34,6 +34,7 @@ const Memberships = () => {
     usedBenefits: "0"
   });
   const [showForm, setShowForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [planOpen, setPlanOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
@@ -120,8 +121,26 @@ const Memberships = () => {
     }));
   };
 
-  const active = memberships.filter(m => new Date(m.endDate) >= new Date());
-  const expired = memberships.filter(m => new Date(m.endDate) < new Date());
+  const filteredMemberships = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return memberships;
+
+    return memberships.filter((membership) => {
+      const haystack = [
+        membership.customerName,
+        membership.plan,
+        membership.offerDetails || "",
+        membership.startDate,
+        membership.endDate,
+        membership.status,
+      ].join(" ").toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [memberships, searchTerm]);
+
+  const active = filteredMemberships.filter(m => new Date(m.endDate) >= new Date());
+  const expired = filteredMemberships.filter(m => new Date(m.endDate) < new Date());
 
   const planUsageSummary = useMemo(() => {
     return memberships.reduce((acc, m) => acc + (m.usedBenefits ?? 0), 0);
@@ -222,6 +241,15 @@ const Memberships = () => {
         </div>
       )}
 
+      <div className="glass-card p-4 mb-8">
+        <Input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search by client name, plan, offer details..."
+          className="h-11"
+        />
+      </div>
+
       {/* Membership Plans */}
       <div className="glass-card p-6 mb-8">
         <div className="flex items-center justify-between mb-4">
@@ -300,6 +328,12 @@ const Memberships = () => {
         </motion.div>
       ) : (
         <div className="space-y-8">
+          {active.length === 0 && expired.length === 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-10 text-center">
+              <p className="font-display text-xl text-foreground mb-1">No memberships found</p>
+              <p className="font-body text-sm text-muted-foreground">No memberships match your search</p>
+            </motion.div>
+          )}
           {active.length > 0 && (
             <div>
               <h2 className="font-display text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
