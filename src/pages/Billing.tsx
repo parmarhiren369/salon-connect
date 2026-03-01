@@ -275,6 +275,7 @@ const Billing = () => {
     const customer = customers.find(c => c.id === b.customerId);
     if (!customer) { toast.error("Customer not found"); return; }
     const phone = customer.mobile.replace(/[^0-9]/g, "");
+    if (phone.length !== 10) { toast.error("Customer mobile number must be exactly 10 digits"); return; }
 
     const doc = generatePDF(b);
     doc.save(`invoice-${customer.name.replace(/\s+/g, '-')}-${b.date}.pdf`);

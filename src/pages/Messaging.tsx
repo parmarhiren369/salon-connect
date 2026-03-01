@@ -64,6 +64,10 @@ const Messaging = () => {
     // Open WhatsApp for each customer with personalized message
     selected.forEach((customer, index) => {
       const phone = customer.mobile.replace(/[^0-9]/g, "");
+      if (phone.length !== 10) {
+        toast.error(`${customer.name}'s mobile number is not 10 digits`);
+        return;
+      }
       const personalizedMsg = message
         .replace(/\{sender\}/gi, senderName)
         .replace(/\{name\}/gi, customer.name);

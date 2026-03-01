@@ -96,6 +96,10 @@ const Appointments = () => {
         toast.error("New client name and mobile are required");
         return;
       }
+      if (!/^\d{10}$/.test(mobile)) {
+        toast.error("Mobile number must be exactly 10 digits");
+        return;
+      }
       const createdId = await addCustomer({
         name,
         mobile,
@@ -211,9 +215,12 @@ const Appointments = () => {
                 <div>
                   <label className="form-label">New Client Mobile *</label>
                   <Input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     value={newClientMobile}
-                    onChange={e => setNewClientMobile(e.target.value)}
-                    placeholder="Enter mobile number"
+                    onChange={e => setNewClientMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="Enter 10 digit mobile number"
                     className="h-11"
                   />
                 </div>

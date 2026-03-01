@@ -44,6 +44,12 @@ const Login = () => {
     setLoading(true);
 
     const normalizedPhone = form.phone.replace(/\D/g, "");
+
+    if (normalizedPhone.length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
+      setLoading(false);
+      return;
+    }
     
     if (normalizedPhone !== AUTHORIZED_PHONE_NORMALIZED) {
       toast.error("Access denied. Unauthorized phone number.");
@@ -169,9 +175,11 @@ const Login = () => {
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="Enter phone number"
+                  onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  placeholder="Enter 10 digit phone number"
                   className="pl-10 h-12"
                   required
                 />

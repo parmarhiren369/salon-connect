@@ -38,6 +38,7 @@ const Customers = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.mobile) { toast.error("Name and mobile are required"); return; }
+    if (!/^\d{10}$/.test(form.mobile)) { toast.error("Mobile number must be exactly 10 digits"); return; }
     if (editId) {
       updateCustomer(editId, form);
       toast.success("Client updated");
@@ -150,7 +151,7 @@ const Customers = () => {
               </div>
               <div>
                 <label className="form-label">Mobile Number *</label>
-                <Input value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} placeholder="+91 9876543210" className="h-11" />
+                <Input type="tel" inputMode="numeric" maxLength={10} value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })} placeholder="9876543210" className="h-11" />
               </div>
               <div>
                 <label className="form-label">Visit Date</label>

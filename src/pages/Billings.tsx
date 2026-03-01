@@ -418,6 +418,7 @@ const Billings = () => {
     const customer = customers.find(c => c.id === b.customerId);
     if (!customer) { toast.error("Customer not found"); return; }
     const phone = customer.mobile.replace(/[^0-9]/g, "");
+    if (phone.length !== 10) { toast.error("Customer mobile number must be exactly 10 digits"); return; }
 
     const summary = buildBillingSummary(b);
     const msg = `Hi ${summary.customerName}! 🧾\n\nYour bill from Life Style Studio:\n\nItems:\n${summary.lineItems || "• Service"}\n\nTotal: ₹${summary.total.toLocaleString("en-IN")}\nPayment: ${summary.payment}\nDate: ${summary.date}\n\nThank you for choosing Life Style Studio! 💫`;
