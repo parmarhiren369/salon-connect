@@ -12,6 +12,7 @@ import jsPDF from "jspdf";
 import logoImg from "@/assets/pdf-logo.png";
 
 const SALON_ADDRESS = "Address: Shop No. 18, Ground Floor, Samanway Westfields, High Tention Road, opp. Raj Path Complex, Bhayli, Vadodara, Gujarat 391410";
+const SALON_PHONE = "7600572772";
 
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash", icon: Banknote },
@@ -136,35 +137,55 @@ const Billing = () => {
     const amt = typeof b.amount === 'number' ? b.amount : parseFloat(String(b.amount));
     const finalAmt = b.finalAmount ?? amt;
 
-    // Centered logo
+    // Left-aligned logo with details
+    const logoX = 10;
     const logoY = 8;
-    const logoMaxWidth = w - 20;
-    const logoMaxHeight = 28;
-    let logoBottom = logoY + 16;
+    const logoMaxWidth = 30;
+    const logoMaxHeight = 24;
+    let logoWidth = 20;
+    let logoHeight = 14;
     try {
       const imageProps = doc.getImageProperties(logoImg);
       const aspectRatio = imageProps.width / imageProps.height;
-      let logoWidth = logoMaxWidth;
-      let logoHeight = logoWidth / aspectRatio;
+      logoWidth = logoMaxWidth;
+      logoHeight = logoWidth / aspectRatio;
       if (logoHeight > logoMaxHeight) {
         logoHeight = logoMaxHeight;
         logoWidth = logoHeight * aspectRatio;
       }
-      const logoX = (w - logoWidth) / 2;
       doc.addImage(logoImg, "PNG", logoX, logoY, logoWidth, logoHeight);
-      logoBottom = logoY + logoHeight;
     } catch {
       /* skip logo if fails */
     }
+    const headerTextX = Math.max(32, logoX + logoWidth + 4);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Life Style Studio", headerTextX, 16);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120, 120, 120);
+    doc.text("Beauty & Wellness", headerTextX, 22);
+
+    const headerAddress = doc.splitTextToSize(SALON_ADDRESS, Math.max(35, w - headerTextX - 42));
+    doc.setFontSize(6.5);
+    doc.setTextColor(130, 130, 130);
+    doc.text(headerAddress, headerTextX, 26);
+
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    const phoneY = 26 + (headerAddress.length * 3) + 2;
+    doc.text(`Ph: ${SALON_PHONE}`, headerTextX, phoneY);
 
     // Divider line
-    const headerLineY = logoBottom + 4;
+    const headerLineY = Math.max(38, phoneY + 4, logoY + logoHeight + 4);
     doc.setDrawColor(191, 155, 48);
     doc.setLineWidth(0.8);
     doc.line(10, headerLineY, w - 10, headerLineY);
 
     // Invoice title
-    const invoiceMetaY = headerLineY + 8;
+    const invoiceMetaY = 16;
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(40, 40, 40);
@@ -175,7 +196,7 @@ const Billing = () => {
     doc.text(`Date: ${formatDate(b.date)}`, w - 10, invoiceMetaY + 6, { align: "right" });
 
     // Customer info
-    let y = invoiceMetaY + 14;
+    let y = headerLineY + 8;
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(60, 60, 60);
