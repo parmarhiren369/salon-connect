@@ -99,7 +99,7 @@ const Billings = () => {
   const addEmptyService = () => {
     setForm(prev => ({
       ...prev,
-      selectedServices: [...prev.selectedServices, createLineItem()]
+      selectedServices: [createLineItem(), ...prev.selectedServices]
     }));
   };
 
