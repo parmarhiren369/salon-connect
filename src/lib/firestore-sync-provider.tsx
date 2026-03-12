@@ -1,15 +1,26 @@
-import { useEffect, ReactNode } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { useFirebase } from './firebase-context';
 import { useStore } from '@/store/useStore';
 import { firestoreSync } from './firestore-sync';
 import type { Customer, MessageTemplate, Billing, SalonService, Membership, MembershipPlan, Appointment } from '@/store/useStore';
 
 export function FirestoreSync({ children }: { children: ReactNode }) {
-  const { db } = useFirebase();
+  const { db, auth } = useFirebase();
   const store = useStore();
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+
+  // Track auth state so subscriptions restart after signOut + signIn (e.g. after password change)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return unsubscribe;
+  }, [auth]);
 
   useEffect(() => {
-    if (!db) return;
+    // Only subscribe when both db and an authenticated user are available
+    if (!db || !user) return;
 
     // Set db in store
     store.setDb(db);
@@ -64,11 +75,11 @@ export function FirestoreSync({ children }: { children: ReactNode }) {
       })
     );
 
-    // Cleanup subscriptions
+    // Cleanup subscriptions when user changes (signOut/signIn) or component unmounts
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [db]); // Only db as dependency, store is a singleton
+  }, [db, user]); // Re-subscribe whenever auth user changes
 
   return <>{children}</>;
 }

@@ -8,8 +8,6 @@ import { motion } from "framer-motion";
 import { Loader2, KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const AUTHORIZED_EMAIL = "lifestylebeautysalon7777@gmail.com";
-
 const ChangePassword = () => {
   const { auth } = useFirebase();
   const navigate = useNavigate();
@@ -54,7 +52,14 @@ const ChangePassword = () => {
       }
 
       // Reauthenticate with current password before changing
-      const credential = EmailAuthProvider.credential(AUTHORIZED_EMAIL, form.currentPassword);
+      const authEmail = user.email;
+      if (!authEmail) {
+        toast.error("Unable to verify account email. Please log in again.");
+        setLoading(false);
+        navigate("/login");
+        return;
+      }
+      const credential = EmailAuthProvider.credential(authEmail, form.currentPassword);
       await reauthenticateWithCredential(user, credential);
 
       // Update password
