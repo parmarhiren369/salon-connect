@@ -1,4 +1,4 @@
-import { Users, LayoutDashboard, MessageSquare, FileText, Receipt, CalendarDays, Cake, Crown } from "lucide-react";
+import { Users, LayoutDashboard, MessageSquare, FileText, Receipt, CalendarDays, Cake, Crown, KeyRound } from "lucide-react";
 
 export const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -9,4 +9,5 @@ export const navItems = [
   { to: "/birthdays", icon: Cake, label: "Birthdays" },
   { to: "/memberships", icon: Crown, label: "Memberships" },
   { to: "/templates", icon: FileText, label: "Templates" },
+  { to: "/change-password", icon: KeyRound, label: "Change Password" },
 ] as const;

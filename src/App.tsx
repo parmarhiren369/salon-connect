@@ -12,6 +12,7 @@ import Customers from "./pages/Customers";
 import Billings from "./pages/Billings";
 import Birthdays from "./pages/Birthdays";
 import Templates from "./pages/Templates";
+import ChangePassword from "./pages/ChangePassword";
 import Messaging from "./pages/Messaging";
 import Memberships from "./pages/Memberships";
 import Appointments from "./pages/Appointments";
@@ -107,6 +108,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Templates />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/change-password"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ChangePassword />
                   </Layout>
                 </ProtectedRoute>
               }

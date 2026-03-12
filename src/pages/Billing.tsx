@@ -239,20 +239,29 @@ const Billing = () => {
     doc.line(10, y, w - 10, y);
     y += 6;
 
-    // Subtotal
+    // Subtotal row
+    const subtotal = services.reduce((sum, s) => {
+      const svc2 = salonServices.find(sv => sv.name === s);
+      return sum + (svc2 ? svc2.price : 0);
+    }, 0);
+    const discountAmt = Math.round(subtotal * (b.discount ?? 0) / 100);
+
     doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 60, 60);
     doc.text("Subtotal", 12, y);
-    doc.text(`₹${amt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+    doc.text(`₹${subtotal.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
     y += 6;
 
-    if ((b.discount ?? 0) > 0) {
-      doc.setTextColor(191, 155, 48);
-      doc.text(`Discount (${b.discount}%)`, 12, y);
-      doc.text(`-₹${Math.round(amt * (b.discount ?? 0) / 100).toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
-      y += 6;
-    }
+    // Discounts row — always shown
+    doc.setTextColor(191, 155, 48);
+    const discountLabel = (b.discount ?? 0) > 0 ? `Discounts (${b.discount}%)` : "Discounts";
+    doc.text(discountLabel, 12, y);
+    doc.text(`-₹${discountAmt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+    y += 6;
 
-    // Total
+    // Final Amount
+    doc.setTextColor(60, 60, 60);
     doc.setDrawColor(191, 155, 48);
     doc.setLineWidth(0.8);
     doc.line(10, y, w - 10, y);
@@ -260,7 +269,7 @@ const Billing = () => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(40, 40, 40);
-    doc.text("Total", 12, y);
+    doc.text("Final Amount", 12, y);
     doc.text(`₹${finalAmt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
 
     // Footer

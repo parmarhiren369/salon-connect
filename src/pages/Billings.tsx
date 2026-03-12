@@ -360,7 +360,7 @@ const Billings = () => {
     doc.setTextColor(50, 50, 50);
     invoiceItems.forEach((item) => {
       doc.text(item.name, 12, y);
-      doc.text(`Rs.${item.finalAmount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+      doc.text(`Rs.${item.amount.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
       y += 6;
     });
 
@@ -368,8 +368,26 @@ const Billings = () => {
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.3);
     doc.line(10, y, w - 10, y);
-    y += 7;
+    y += 6;
 
+    // Subtotal = sum of pre-discount item prices
+    const subtotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+    const totalDiscountAmt = Math.round(subtotal - finalAmt);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 60, 60);
+    doc.text("Subtotal", 12, y);
+    doc.text(`Rs.${subtotal.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+    y += 6;
+
+    // Discounts row — always shown
+    doc.setTextColor(191, 155, 48);
+    doc.text("Discounts", 12, y);
+    doc.text(`-Rs.${totalDiscountAmt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
+    y += 6;
+
+    doc.setTextColor(60, 60, 60);
     doc.setDrawColor(191, 155, 48);
     doc.setLineWidth(0.8);
     doc.line(10, y, w - 10, y);
@@ -377,7 +395,7 @@ const Billings = () => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(40, 40, 40);
-    doc.text("Total", 12, y);
+    doc.text("Final Amount", 12, y);
     doc.text(`Rs.${finalAmt.toLocaleString("en-IN")}`, w - 12, y, { align: "right" });
 
     y += 15;
